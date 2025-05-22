@@ -1,5 +1,5 @@
 from opencage.geocoder import OpenCageGeocode
-from src.secrets import apikey
+from secrets import apikey
 
 OCG = OpenCageGeocode(apikey)
 

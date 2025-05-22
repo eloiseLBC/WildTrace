@@ -1,2 +1,2 @@
-venv
-src/secrets.py
+venv/
+secrets.py
