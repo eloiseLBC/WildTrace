@@ -34,3 +34,6 @@ def get_altitude(lat, lng):
         return altitude
     except InvalidInputError as ex:
         print(f"Request altitude : Invalid Input Error : {ex}")
+
+def get_distance_from_equator(lat):
+    return abs(lat)
