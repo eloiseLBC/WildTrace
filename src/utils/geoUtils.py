@@ -15,9 +15,20 @@ def get_city_country(lat: float, lng: float):
     try:
         results = OCG.reverse_geocode(lat, lng)
         if results and len(results):
-            city, country, formatted_address = results[0]['components']['country'], results[0]['components']['city'], results[0]['formatted']
-            print(f"City : {city}, country : {country}, formatted address : {formatted_address}")
-            return city, country, formatted_address
+            try:
+                city = results[0]['components']['city']
+                country = results[0]['components']['country']
+                formatted_address = results[0]['formatted']
+                return {
+                    "city": city,
+                    "country": country,
+                    "formatted_address": formatted_address
+                }
+            except KeyError:
+                return {"aquatic_location": results[0]['formatted']}
+    except Exception as ex:
+        print(f"ERROR: {ex}")
+        return {}
     except RateLimitExceededError as ex:
         # Use all available requests
         print(ex)
@@ -29,11 +40,16 @@ def get_altitude(lat, lng):
     try:
         url = f"https://api.opentopodata.org/v1/{dataset_altitude}?locations={lat},{lng}"
         r = requests.get(url).json()
-        altitude = r['results'][0]['elevation']
-        print(f"Altitude de {altitude}m.")
-        return altitude
+        return r['results'][0]['elevation']
     except InvalidInputError as ex:
         print(f"Request altitude : Invalid Input Error : {ex}")
 
 def get_distance_from_equator(lat):
-    return abs(lat)
+    distance = abs(lat)
+    climat = "équatorial" if distance <= 10 else "tropical" if distance <= 23.5 else "polaire" if distance > 60 else "tempéré"
+    distance_km = distance * 111
+    return {
+        "distance": distance,
+        "distance_km": distance_km,
+        "climat": climat
+    }
