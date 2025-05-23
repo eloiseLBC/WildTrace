@@ -1,7 +1,24 @@
-from utils.geoUtils import get_city_country
+from utils.geoUtils import get_city_country, get_altitude, get_distance_from_equator
+import pandas as pd
+
+df = pd.DataFrame()
 
 if __name__ == "__main__":
-    latitude, longitude = 44.838295, -0.575381
-    city, country, formatted_address = get_city_country(latitude, longitude)
-    print(f"City : {city}, country : {country}, formatted address : {formatted_address}")
+    print("----- Application en cours de développement -----")
+    lat, lng = 44.0997, -12.4567
+    row = {
+        "latitude": lat,
+        "longitude": lng,
+        **get_city_country(lat, lng),
+        "altitude": get_altitude(lat, lng),
+        **get_distance_from_equator(lat),
+    }
+
+    df = pd.DataFrame([row])
+    print(df)
+
+
+
+
+
 
