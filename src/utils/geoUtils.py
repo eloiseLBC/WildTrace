@@ -14,6 +14,9 @@ OCG = OpenCageGeocode(apikey)
 
 
 def get_city_country(lat: float, lng: float):
+    """
+    Détermine la ville et le pays selon la latitude et la longitude.
+    """
     try:
         results = OCG.reverse_geocode(lat, lng)
         if results and len(results):
@@ -37,7 +40,11 @@ def get_city_country(lat: float, lng: float):
     except InvalidInputError as ex:
         print(f"Request city, country : Invalid Input Error : {ex}")
 
+
 def get_altitude(lat, lng):
+    """
+    Détermine l'altitude à l'aide de  la latitude et la longitude
+    """
     try:
         url = f"https://api.opentopodata.org/v1/{dataset_altitude}?locations={lat},{lng}"
         r = requests.get(url).json()
@@ -45,7 +52,11 @@ def get_altitude(lat, lng):
     except InvalidInputError as ex:
         print(f"Request altitude : Invalid Input Error : {ex}")
 
+
 def get_distance_from_equator(lat):
+    """
+    Détermine la distancce depuis l'équateur
+    """
     distance = abs(lat)
     climat = "équatorial" if distance <= 10 else "tropical" if distance <= 23.5 else "polaire" if distance > 60 else "tempéré"
     distance_km = distance * 111
@@ -55,7 +66,11 @@ def get_distance_from_equator(lat):
         "climat": climat
     }
 
+
 def get_coastline_distance(lat, lng):
+    """
+    Détermine la distance d'une position d'une côté
+    """
     # Charger les côtes (costline file)
     coastlines = gpd.read_file("data/ne_10m_coastline.shp")
     location = Point(lng, lat)
@@ -64,6 +79,10 @@ def get_coastline_distance(lat, lng):
         "distance_coastline" : dist
     }
 
+
 def get_hemisphere(lat):
+    """
+    Détermine l'émisphère dans lequel se situe la position
+    """
     hemisphere = "nord" if lat > 0 else "sud" if lat < 0 else "equateur"
     return hemisphere
