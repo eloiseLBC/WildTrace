@@ -1,8 +1,10 @@
+from utils.writeUtils import write_json
 from utils.dataUtils import get_season, get_formatted_ddmmyyyy, is_night
 from utils.geoUtils import get_city_country, get_altitude, get_distance_from_equator, \
     get_coastline_distance, get_hemisphere
 import pandas as pd
 from datetime import datetime, timezone
+
 
 df = pd.DataFrame()
 
@@ -26,6 +28,7 @@ if __name__ == "__main__":
         "is_night": is_night(lat, lng, timestamp_utc)
     }
 
+    write_json(row, timestamp_str)
     df = pd.DataFrame([row])
     print(df)
 
