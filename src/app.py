@@ -1,4 +1,4 @@
-from utils.writeUtils import write_json
+from utils.writeUtils import write_json, upload_file_to_drive
 from utils.dataUtils import get_season, get_formatted_ddmmyyyy, is_night
 from utils.geoUtils import get_city_country, get_altitude, get_distance_from_equator, \
     get_coastline_distance, get_hemisphere
@@ -22,13 +22,14 @@ if __name__ == "__main__":
         "altitude": get_altitude(lat, lng),
         **get_distance_from_equator(lat),
         **get_coastline_distance(lat, lng),
-        "hemisphere": get_hemisphere(lat),
+       "hemisphere": get_hemisphere(lat),
         "season": get_season("sud", get_formatted_ddmmyyyy(timestamp_str)),
         "is_night": is_night(lat, lng, timestamp_utc)
     }
+    logger.info(row)
 
     write_json(row, timestamp_str)
-    logger.info(row)
+
     df = pd.DataFrame([row])
 
 
