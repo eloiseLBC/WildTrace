@@ -3,7 +3,6 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 import requests
-import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
 from opencage.geocoder import OpenCageGeocode, RateLimitExceededError, InvalidInputError
@@ -51,8 +50,8 @@ def get_distance_from_equator(lat):
     climat = "équatorial" if distance <= 10 else "tropical" if distance <= 23.5 else "polaire" if distance > 60 else "tempéré"
     distance_km = distance * 111
     return {
-        "distance": distance,
-        "distance_km": distance_km,
+        "distance_equator": distance,
+        "distance_equator_km": distance_km,
         "climat": climat
     }
 
@@ -64,3 +63,7 @@ def get_coastline_distance(lat, lng):
     return {
         "distance_coastline" : dist
     }
+
+def get_hemisphere(lat):
+    hemisphere = "nord" if lat > 0 else "sud" if lat < 0 else "equateur"
+    return hemisphere
