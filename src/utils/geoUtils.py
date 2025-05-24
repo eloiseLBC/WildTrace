@@ -57,7 +57,7 @@ def get_distance_from_equator(lat):
 
 def get_coastline_distance(lat, lng):
     # Charger les côtes (costline file)
-    coastlines = gpd.read_file("src/data/ne_10m_coastline.shp")
+    coastlines = gpd.read_file("data/ne_10m_coastline.shp")
     location = Point(lng, lat)
     dist = coastlines.distance(location).min()
     return {
