@@ -1,4 +1,3 @@
-from datetime import datetime
 from astral import LocationInfo
 from astral.sun import sun
 from datetime import datetime
@@ -18,7 +17,7 @@ def is_night(lat: float, lng: float, timestamp: datetime) -> bool:
 
 def get_season(hemisphere, date_now, format="%d-%m-%Y"):
     """
-    Détermine la saison selon la date et l'émisphère.
+    Détermine la saison selon la date et l'hémisphère.
     """
     timestamp = datetime.strptime(date_now, format)
     try:

@@ -4,14 +4,13 @@ from utils.geoUtils import get_city_country, get_altitude, get_distance_from_equ
     get_coastline_distance, get_hemisphere
 import pandas as pd
 from datetime import datetime, timezone
-
+from utils.loggerUtils import logger, timestamp_str
 
 df = pd.DataFrame()
 
 if __name__ == "__main__":
-    print("----- Application en cours de développement -----")
+    logger.info("----- Application en cours de développement -----")
     lat, lng = 48.872997, 2.348728
-    timestamp_str = datetime.now().strftime("%d-%m-%Y %H:%M:%S.%f")
     timestamp_utc = datetime.strptime(timestamp_str, "%d-%m-%Y %H:%M:%S.%f").replace(tzinfo=timezone.utc)
 
     row = {
@@ -29,8 +28,9 @@ if __name__ == "__main__":
     }
 
     write_json(row, timestamp_str)
+    logger.info(row)
     df = pd.DataFrame([row])
-    print(df)
+
 
 
 
