@@ -4,23 +4,23 @@ import os
 import json
 import requests
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-from my_secrets.secrets import headers, drive_folder_collected_data_id, bearer_token
+from my_secrets.secrets import headers, drive_folder_collected_data_id, bearer_token, drive_folder_logs
 from datetime import datetime
-from utils.loggerUtils import logger
+from utils.loggerUtils import logger, timestamp_formatted
 
 
 def write_json(row, timestamp):
     timestamp_file = datetime.strptime(timestamp, "%d-%m-%Y %H:%M:%S.%f")
     timestamp_formatted = timestamp_file.strftime(f"%d-%m-%Y-%H-%M-%S")
     filename = f"collect_process_data_{timestamp_formatted}.json"
-    path = f"data/output/{filename}"
+    path = f"data/output/generated/{filename}"
     with open(path, "w") as f:
         json.dump(row, f, indent=2)
         # Permet de synchroniser le système et que s'il y a lecture le fichier soit bien trouvé
         f.flush()
         os.fsync(f.fileno())
         logger.info(f"Fichier enregistré sous le nom : {filename}")
-        upload_file_to_drive(path, filename, drive_folder_collected_data_id)
+        # upload_file_to_drive(path, filename, drive_folder_collected_data_id)
 
 
 def find_folder_id(name, parent_id):
@@ -122,3 +122,25 @@ def upload_file_to_drive(filepath, filename, parent_folder_id):
             if hasattr(e, 'response') and e.response is not None:
                 logger.error(f"Détail : {e.response.text}")
         return None
+
+
+def write_log_drive():
+    logfile_name = f"wildtrace-{timestamp_formatted}.log"
+    logfile_path = f"logs/{logfile_name}"
+    filename = os.path.basename(logfile_path)
+
+    if not os.path.exists(logfile_path):
+        if logger:
+            logger.warning(f"Fichier log introuvable : {logfile_path}")
+        return None
+
+    if os.path.getsize(logfile_path) == 0:
+        if logger:
+            logger.warning("Fichier log vide. Aucun upload.")
+        return None
+
+    return upload_file_to_drive(
+        filepath=logfile_path,
+        filename=filename,
+        parent_folder_id=drive_folder_logs
+    )
