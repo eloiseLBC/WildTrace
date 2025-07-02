@@ -56,8 +56,6 @@ def get_altitude(lat, lng, max_retries=5, base_delay=1):
         try:
             url = f"https://api.opentopodata.org/v1/{dataset_altitude}?locations={lat},{lng}"
             r = requests.get(url).json()
-            logger.info(f"Results : {r}")
-            logger.info(f"altitude : {r['results'][0]['elevation']}")
             return r['results'][0]['elevation']
         except InvalidInputError as ex:
             logger.error(f"Request altitude : Invalid Input Error : {ex}")

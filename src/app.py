@@ -32,7 +32,6 @@ def generate_one_row():
         temperature = generate_temperature()
         humidity = generate_humidity()
         pression = generate_pression(altitude)
-        logger.info(f"type de utc : {type(timestamp_utc)}")
         luminosity = get_luminosity(hour, is_night(lat, lng, timestamp_utc), environment)
         concentration_co2 = generate_co2(environment)
 
@@ -108,7 +107,7 @@ if __name__ == "__main__":
         with ThreadPoolExecutor(max_workers=10) as executor:
             # Utilisation de ThreadPoolExecutor pour la génération parallèle
             # Warning : le nombre d'objets générés est à 1 car je veux tester le cloud pour la generation de credentials
-            futures = [executor.submit(generate_one_row) for _ in range(1)]  # ← 100 objets par exemple
+            futures = [executor.submit(generate_one_row) for _ in range(2)]  # ← 100 objets par exemple
             for future in as_completed(futures):
                 row = future.result()
                 if row:
