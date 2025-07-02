@@ -106,7 +106,9 @@ if __name__ == "__main__":
     try:
         logger.info("----- Partie data generator -----")
         with ThreadPoolExecutor(max_workers=10) as executor:
-            futures = [executor.submit(generate_one_row) for _ in range(100)]  # ← 100 objets par exemple
+            # Utilisation de ThreadPoolExecutor pour la génération parallèle
+            # Warning : le nombre d'objets générés est à 1 car je veux tester le cloud pour la generation de credentials
+            futures = [executor.submit(generate_one_row) for _ in range(1)]  # ← 100 objets par exemple
             for future in as_completed(futures):
                 row = future.result()
                 if row:
