@@ -1,6 +1,6 @@
 import sys
 import os
-import time
+import time, random
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
@@ -48,19 +48,25 @@ def get_city_country(lat: float, lng: float):
         logger.error(f"Request city, country : Invalid Input Error : {ex}")
 
 
-def get_altitude(lat, lng):
+def get_altitude(lat, lng, max_retries=5, base_delay=1):
     """
-    Détermine l'altitude à l'aide de  la latitude et la longitude
+    Détermine l'altitude à l'aide de la latitude et la longitude, avec gestion du retry.
     """
-    try:
-        url = f"https://api.opentopodata.org/v1/{dataset_altitude}?locations={lat},{lng}"
-        r = requests.get(url).json()
-        logger.info(f"Results : {r}")
-        logger.info(f"altitude : {r['results'][0]['elevation']}")
-        time.sleep(1)
-        return r['results'][0]['elevation']
-    except InvalidInputError as ex:
-        logger.error(f"Request altitude : Invalid Input Error : {ex}")
+    for attempt in range(max_retries):
+        try:
+            url = f"https://api.opentopodata.org/v1/{dataset_altitude}?locations={lat},{lng}"
+            r = requests.get(url).json()
+            logger.info(f"Results : {r}")
+            logger.info(f"altitude : {r['results'][0]['elevation']}")
+            return r['results'][0]['elevation']
+        except InvalidInputError as ex:
+            logger.error(f"Request altitude : Invalid Input Error : {ex}")
+            break
+        except Exception as ex:
+            delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+            logger.warning(f"Attempt {attempt+1} failed: {ex}. Retrying in {delay:.2f} seconds.")
+            time.sleep(delay)
+    return None
 
 
 def get_distance_from_equator(lat):
