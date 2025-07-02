@@ -124,6 +124,5 @@ if __name__ == "__main__":
         write_log_drive()
 
         if json_object:
-            timestamp_str = datetime.strptime(timestamp_str, "%d-%m-%Y %H:%M:%S")
             write_json(json_object, timestamp_str)
 

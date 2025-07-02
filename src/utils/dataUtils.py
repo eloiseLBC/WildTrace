@@ -1,7 +1,8 @@
 from astral import LocationInfo
 from astral.sun import sun
-from datetime import datetime
+from datetime import datetime, timezone
 import pytz
+
 
 
 def is_night(lat: float, lng: float, timestamp: datetime) -> bool:
@@ -12,6 +13,8 @@ def is_night(lat: float, lng: float, timestamp: datetime) -> bool:
     location = LocationInfo(name="point", region="earth", timezone="UTC", latitude=lat, longitude=lng)
     # Calcule les heures du lever et coucher du soleil
     s = sun(location.observer, date=timestamp.date(), tzinfo=pytz.UTC)
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
     return timestamp < s["sunrise"] or timestamp > s["sunset"]
 
 
