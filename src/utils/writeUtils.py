@@ -3,6 +3,9 @@ import sys
 import os
 import json
 import requests
+
+from utils.credentialsUtils import generate_credentials_google_drive
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from my_secrets.secrets import headers, drive_folder_collected_data_id, bearer_token, drive_folder_logs
 from datetime import datetime
@@ -119,8 +122,11 @@ def upload_file_to_drive(filepath, filename, parent_folder_id):
     except requests.exceptions.RequestException as e:
         if logger:
             logger.error(f"Erreur HTTP lors de l’upload : {e}")
-            if hasattr(e, 'response') and e.response is not None:
+            if hasattr(e, 'response') and e.response is not None and e.response.status_code != 401:
                 logger.error(f"Détail : {e.response.text}")
+            elif e.response.status_code == 401:
+                logger.warning("Erreur d'authentification (401). Génération de nouveaux credentials.")
+                generate_credentials_google_drive()
         return None
 
 

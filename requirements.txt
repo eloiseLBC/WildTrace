@@ -27,3 +27,6 @@ geopandas~=1.0.1
 shapely~=2.1.1
 pytz~=2025.2
 astral~=3.2
+google-api-python-client~=2.167.0
+pyspark~=3.5.4
+pyspark-stubs~=3.0.0.post3
