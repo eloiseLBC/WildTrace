@@ -5,7 +5,6 @@ import time, random
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 import requests
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import geopandas as gpd
 from shapely.geometry import Point
 from opencage.geocoder import OpenCageGeocode, RateLimitExceededError, InvalidInputError
