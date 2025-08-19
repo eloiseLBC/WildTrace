@@ -28,5 +28,5 @@ shapely~=2.0.7
 pytz~=2025.2
 astral~=3.2
 google-api-python-client~=2.167.0
-pyspark~=3.5.4
+pyspark~=3.0.0
 pyspark-stubs~=3.0.0
