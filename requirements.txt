@@ -29,4 +29,4 @@ pytz~=2025.2
 astral~=3.2
 google-api-python-client~=2.167.0
 pyspark~=3.5.4
-pyspark-stubs~=3.0.0.post3
+pyspark-stubs~=3.0.0
