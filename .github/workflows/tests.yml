@@ -1,4 +1,4 @@
-name: Tests sur branche develop
+name: Tests on develop branch
 
 # Déclenche la pipeline sur push et pull request vers develop
 on:
