@@ -1,4 +1,15 @@
 import unittest
+import os
+import sys
+
+# Injecter la clé API dans le module secrets avant l'import
+if 'OPEN_CAGE_GEOCODE_APIKEY' in os.environ:
+    # Créer un module secrets temporaire pour les tests
+    import types
+    secrets_module = types.ModuleType('secrets')
+    secrets_module.apikey = os.environ.get('OPEN_CAGE_GEOCODE_APIKEY')
+    sys.modules['my_secrets.secrets'] = secrets_module
+
 from src.utils.geoUtils import get_city_country, get_altitude, get_coastline_distance, get_distance_from_equator, \
     get_hemisphere
 
