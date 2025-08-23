@@ -1,8 +1,13 @@
 import math
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from utils.dataUtils import is_night
+from utils.dataUtils import get_formatted_ddmmyyyy, is_night, get_season
+from utils.geoUtils import get_altitude, get_city_country, get_distance_from_equator, get_coastline_distance, \
+    get_hemisphere
+from utils.loggerUtils import logger
+
 
 """
 TODO: Générer des fausses données pour ces clés
@@ -120,3 +125,68 @@ def generate_lat_lng(environment):
     lat = round(random.uniform(*lat_ranges.get(environment, (-40, 60))), 6)
     lon = round(random.uniform(*lon_ranges.get(environment, (-180, 180))), 6)
     return lat, lon
+
+
+def generate_one_row():
+    try:
+        timestamp_str = generate_timestamp()
+
+        timestamp_utc = datetime.strptime(timestamp_str, "%d-%m-%Y %H:%M:%S.%f").replace(tzinfo=timezone.utc)
+        timestamp_utc = timestamp_utc.strftime("%d-%m-%Y %H:%M:%S")
+        timestamp_utc = datetime.strptime(timestamp_utc, "%d-%m-%Y %H:%M:%S")
+
+        hour = timestamp_utc.hour
+        environment = generate_environment()
+        altitude = None
+
+        while altitude is None:
+            lat, lng = generate_lat_lng(environment)
+            altitude = get_altitude(lat, lng)
+
+        temperature = generate_temperature()
+        humidity = generate_humidity()
+        pression = generate_pression(altitude)
+        luminosity = get_luminosity(hour, is_night(lat, lng, timestamp_utc), environment)
+        concentration_co2 = generate_co2(environment)
+
+        row = {
+            "timestamp": timestamp_str,
+            "formatted_ddmmyyyy": get_formatted_ddmmyyyy(timestamp_str),
+            "latitude": lat,
+            "longitude": lng,
+            "temperature": temperature,
+            "humidity": humidity,
+            "pression": pression,
+            "luminosity": luminosity,
+            "concentration_co2": concentration_co2,
+            "environment": environment,
+            **get_city_country(lat, lng),
+            "altitude": altitude,
+            **get_distance_from_equator(lat),
+            **get_coastline_distance(lat, lng),
+            "hemisphere": get_hemisphere(lat),
+            "season": get_season(get_hemisphere(lat), get_formatted_ddmmyyyy(timestamp_str)),
+            "is_night": is_night(lat, lng, timestamp_utc)
+        }
+
+        return row
+
+    except Exception as e:
+        logger.error(f"Erreur dans generate_one_row : {e}", exc_info=True)
+        raise
+
+
+def activate_generator(json_object):
+    """
+    Active le mode générateur de données.
+    """
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        # Utilisation de ThreadPoolExecutor pour la génération parallèle
+        # Warning : le nombre d'objets générés est à 2 pour tester
+        futures = [executor.submit(generate_one_row) for _ in range(2)]
+        for future in as_completed(futures):
+            row = future.result()
+            if row:
+                json_object.append(row)
+                logger.info(f"Row générée : {row}")
+        return json_object

@@ -63,6 +63,7 @@ class GeoUtilsCase(unittest.TestCase):
         distance = get_coastline_distance(48.8566, 2.3522)
         self.assertGreaterEqual(distance["distance_coastline"], 0)
 
+
     def test_north_hemisphere(self):
         """Test the get_hemisphere function with known latitude"""
         hemisphere = get_hemisphere(48.8566)
@@ -74,3 +75,4 @@ class GeoUtilsCase(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
