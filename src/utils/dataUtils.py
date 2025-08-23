@@ -66,6 +66,4 @@ def  get_formatted_ddmmyyyy(timestamp):
     """
     Retourne la date formattée en dd-mm-yyyy
     """
-    timestamp = datetime.strptime(timestamp, "%d-%m-%Y %H:%M:%S.%f")
-    formatted = f"{timestamp.day}-{timestamp.month}-{timestamp.year}"
-    return formatted
+    return timestamp[:10]

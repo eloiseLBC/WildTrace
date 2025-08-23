@@ -54,8 +54,10 @@ def get_altitude(lat, lng, max_retries=5, base_delay=1):
     """
     for attempt in range(max_retries):
         try:
-            url = f"https://api.opentopodata.org/v1/{dataset_altitude}?locations={lat},{lng}"
-            r = requests.get(url).json()
+            url = f"https://api.open-elevation.com/api/v1/lookup?locations={lat},{lng}"
+            r = requests.get(url, timeout=15).json()
+            if r['results'][0]['elevation'] == 0.0:
+                return None
             return r['results'][0]['elevation']
         except InvalidInputError as ex:
             logger.error(f"Request altitude : Invalid Input Error : {ex}")
@@ -63,7 +65,8 @@ def get_altitude(lat, lng, max_retries=5, base_delay=1):
         except Exception as ex:
             delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
             logger.warning(f"Attempt {attempt+1} failed: {ex}. Retrying in {delay:.2f} seconds.")
-            time.sleep(delay)
+            if attempt < max_retries - 1:
+                time.sleep(delay)
     return None
 
 
