@@ -1,4 +1,15 @@
 import unittest
+import os
+import sys
+
+# Injecter la clé API dans le module secrets avant l'import
+if 'OPEN_CAGE_GEOCODE_APIKEY' in os.environ:
+    # Créer un module secrets temporaire pour les tests
+    import types
+    secrets_module = types.ModuleType('secrets')
+    secrets_module.apikey = os.environ.get('OPEN_CAGE_GEOCODE_APIKEY')
+    sys.modules['my_secrets.secrets'] = secrets_module
+
 from src.utils.geoUtils import get_city_country, get_altitude, get_coastline_distance, get_distance_from_equator, \
     get_hemisphere
 
@@ -50,7 +61,8 @@ class GeoUtilsCase(unittest.TestCase):
     def test_coastline_distance(self):
         """Test the get_coastline_distance function with known coordinates"""
         distance = get_coastline_distance(48.8566, 2.3522)
-        self.assertGreaterEqual(distance, 0)
+        self.assertGreaterEqual(distance["distance_coastline"], 0)
+
 
     def test_north_hemisphere(self):
         """Test the get_hemisphere function with known latitude"""
@@ -63,3 +75,4 @@ class GeoUtilsCase(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
