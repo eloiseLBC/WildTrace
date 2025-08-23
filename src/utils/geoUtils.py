@@ -56,6 +56,8 @@ def get_altitude(lat, lng, max_retries=5, base_delay=1):
         try:
             url = f"https://api.open-elevation.com/api/v1/lookup?locations={lat},{lng}"
             r = requests.get(url, timeout=15).json()
+            if r['results'][0]['elevation'] == 0.0:
+                return None
             return r['results'][0]['elevation']
         except InvalidInputError as ex:
             logger.error(f"Request altitude : Invalid Input Error : {ex}")
@@ -65,6 +67,7 @@ def get_altitude(lat, lng, max_retries=5, base_delay=1):
             logger.warning(f"Attempt {attempt+1} failed: {ex}. Retrying in {delay:.2f} seconds.")
             if attempt < max_retries - 1:
                 time.sleep(delay)
+    return None
 
 
 def get_distance_from_equator(lat):
