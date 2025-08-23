@@ -1,16 +1,16 @@
 import sys
 import os
 import time, random
+from pathlib import Path
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 import requests
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import geopandas as gpd
 from shapely.geometry import Point
 from opencage.geocoder import OpenCageGeocode, RateLimitExceededError, InvalidInputError
-from utils.constants import dataset_altitude
-from utils.loggerUtils import logger
+from src.utils.constants import dataset_altitude
+from src.utils.loggerUtils import logger
 from my_secrets.secrets import apikey
 
 
@@ -85,8 +85,10 @@ def get_coastline_distance(lat, lng):
     """
     Détermine la distance d'une position d'une côté
     """
-    # Charger les côtes (costline file)
-    coastlines = gpd.read_file("data/input/ne_10m_coastline.shp")
+    # Get the directory where this script is located
+    project_root = Path(__file__).parent.parent.parent
+    coastline_path = project_root / "data" / "input" / "ne_10m_coastline.shp"
+    coastlines = gpd.read_file(coastline_path)
     location = Point(lng, lat)
     dist = coastlines.distance(location).min()
     return {
