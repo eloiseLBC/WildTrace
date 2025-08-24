@@ -113,5 +113,4 @@ def get_hemisphere(lat):
     Détermine l'émisphère dans lequel se situe la position
     """
     hemisphere = "nord" if lat > 0 else "sud" if lat < 0 else "equateur"
-    logger.info(f"Données récupérées dans l'hémisphère {hemisphere}")
     return hemisphere
