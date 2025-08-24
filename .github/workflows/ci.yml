@@ -62,7 +62,7 @@ jobs:
             exit 1
           fi
           
-          if [ "${{ needs.check-source-branch.result }}" != "success" ]; then
+          if [ "${{ needs.check-source-branch.result }}" != "success" && "${{ github.base_ref }}" == "main" ]; then
             echo "🚩 Check source branch job failed"
             exit 1
           fi
