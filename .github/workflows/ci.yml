@@ -24,6 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
+          pip install coverage pytest-cov
 
       - name: Run tests
         env:
@@ -32,9 +33,19 @@ jobs:
           for file in test/*.py; do
             if [ -f "$file" ]; then
               echo "🫡Testing $file"
-              python -m pytest "$file" -v
+              coverage run -m pytest "$file" -v
             fi
           done
+          
+          coverage report -m
+          coverage html
+          coverage xml
+          
+          - name: Upload coverage report
+            uses: actions/upload-artifact@v3
+            with:
+              name: coverage-report
+              
 
   check-source-branch:
     runs-on: ubuntu-latest

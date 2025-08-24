@@ -95,7 +95,8 @@ def generate_co2(environment):
         "cloudy":       (400, 700)
     }
     co2_range = co2_ranges_ppm.get(environment, (400, 600))
-    return co2_range
+    co2_concentration = random.randint(co2_range[0], co2_range[1])
+    return co2_concentration
 
 def generate_lat_lng(environment):
     lat_ranges = {
