@@ -38,6 +38,7 @@ jobs:
 
   check-source-branch:
     runs-on: ubuntu-latest
+    if: github.base_ref == 'main'
     steps:
       - name: Check if PR is from develop
         run: |
