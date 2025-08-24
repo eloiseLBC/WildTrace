@@ -31,7 +31,7 @@ jobs:
         run: |
           for file in test/*.py; do
             if [ -f "$file" ]; then
-              echo "Testing $file"
+              echo "🫡Testing $file"
               python -m pytest "$file" -v
             fi
           done
