@@ -73,13 +73,14 @@ def generate_environment():
         "jungle",
         "field",
         "city_dense",
-        "city_airy"
+        "city_airy",
         "village",
         "indoors",
         "cloudy"
     ]
     index = random.randint(0, len(category)-1)
     environment = category[index]
+    print(environment)
     return environment
 
 def generate_co2(environment):
