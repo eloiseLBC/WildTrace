@@ -3,7 +3,7 @@ import optparse
 
 from utils.generator import activate_generator
 from utils.sparkUtils import create_spark_session
-from utils.writeUtils import write_json, write_log_drive, find_folder_id
+from utils.writeUtils import write_json, write_log_drive
 from datetime import datetime
 from utils.loggerUtils import logger, timestamp_str
 
