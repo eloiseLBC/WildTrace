@@ -9,7 +9,6 @@ import requests
 import geopandas as gpd
 from shapely.geometry import Point
 from opencage.geocoder import OpenCageGeocode, RateLimitExceededError, InvalidInputError
-from src.utils.constants import dataset_altitude
 from src.utils.loggerUtils import logger
 from my_secrets.secrets import apikey
 

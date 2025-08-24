@@ -1,6 +1,6 @@
 import unittest
 from src.utils.generator import (generate_timestamp, generate_temperature, generate_humidity, generate_pression,
-                                 generate_co2, generate_environment, generate_lat_lng, generate_one_row)
+                                 generate_co2, generate_environment, generate_lat_lng, generate_one_row, get_luminosity)
 from datetime import datetime
 
 class MyTestCase(unittest.TestCase):
@@ -15,7 +15,6 @@ class MyTestCase(unittest.TestCase):
         self.assertTrue(valid_format, "Timestamp format is invalid")
 
     def test_get_luminosity(self):
-        from src.utils.generator import get_luminosity, is_night
         luminosity = get_luminosity(0, True, "desert")
         self.assertIsInstance(luminosity, float, "Luminosity should be an integer")
         self.assertGreaterEqual(luminosity, 0, "Nighttime luminosity should be >= 0")

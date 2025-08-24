@@ -3,10 +3,10 @@ import random
 from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from utils.dataUtils import get_formatted_ddmmyyyy, is_night, get_season
-from utils.geoUtils import get_altitude, get_city_country, get_distance_from_equator, get_coastline_distance, \
+from src.utils.dataUtils import get_formatted_ddmmyyyy, is_night, get_season
+from src.utils.geoUtils import get_altitude, get_city_country, get_distance_from_equator, get_coastline_distance, \
     get_hemisphere
-from utils.loggerUtils import logger
+from src.utils.loggerUtils import logger
 
 
 """
