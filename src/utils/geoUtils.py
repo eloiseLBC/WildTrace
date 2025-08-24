@@ -9,7 +9,6 @@ import requests
 import geopandas as gpd
 from shapely.geometry import Point
 from opencage.geocoder import OpenCageGeocode, RateLimitExceededError, InvalidInputError
-from src.utils.constants import dataset_altitude
 from src.utils.loggerUtils import logger
 from my_secrets.secrets import apikey
 
@@ -68,14 +67,14 @@ def get_altitude(lat, lng, max_retries=2, base_delay=1):
             if attempt < max_retries - 1:
                 time.sleep(delay)
 
-    # Fallback vers Open-Elevation
-    logger.info("GET ALTITUDE : Fallback vers Open-Elevation...")
+    # Fallback vers Open Topodata
+    logger.info("GET ALTITUDE : Fallback vers Open Topodata...")
     try:
-        url = f"https://api.open-elevation.com/api/v1/lookup?locations={lat},{lng}"
+        url = f"https://api.opentopodata.org/v1/srtm30m?locations={lat},{lng}"
         r = requests.get(url, timeout=15).json()
         return r['results'][0]['elevation']
     except Exception as ex:
-        logger.error(f"Open-Elevation aussi indisponible: {ex}. \nAltitude non trouvée.")
+        logger.error(f"Open Topodata aussi indisponible: {ex}. \nAltitude non trouvée.")
     return None
 
 
