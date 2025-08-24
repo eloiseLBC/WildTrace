@@ -1,4 +1,14 @@
 import unittest
+import sys
+import os
+# Injecter la clé API dans le module secrets avant l'import
+if 'OPEN_CAGE_GEOCODE_APIKEY' in os.environ:
+    # Créer un module secrets temporaire pour les tests
+    import types
+    secrets_module = types.ModuleType('secrets')
+    secrets_module.apikey = os.environ.get('OPEN_CAGE_GEOCODE_APIKEY')
+    sys.modules['my_secrets.secrets'] = secrets_module
+
 from src.utils.generator import (generate_timestamp, generate_temperature, generate_humidity, generate_pression,
                                  generate_co2, generate_environment, generate_lat_lng, generate_one_row, get_luminosity)
 from datetime import datetime
