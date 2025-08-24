@@ -35,6 +35,7 @@ jobs:
               echo "🫡Testing $file"
               coverage run --append -m pytest "$file" -v
             fi
+          done
 
       - name: Generate coverage reports
         run: |
