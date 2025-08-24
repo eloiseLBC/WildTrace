@@ -30,7 +30,11 @@ jobs:
         env:
           OPEN_CAGE_GEOCODE_APIKEY: ${{ secrets.OPEN_CAGE_GEOCODE_APIKEY }}
         run: |
-          coverage run -m pytest test/ -v
+          for file in test/*.py; do
+            if [ -f "$file" ]; then
+              echo "🫡Testing $file"
+              coverage run --append -m pytest "$file" -v
+            fi
 
       - name: Generate coverage reports
         run: |
