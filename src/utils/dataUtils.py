@@ -24,7 +24,7 @@ def get_season(hemisphere, date_now, format="%d-%m-%Y"):
     """
     timestamp = datetime.strptime(date_now, format)
     try:
-        if hemisphere == "nord":
+        if hemisphere == "North":
             begin_spring = datetime.strptime(f"20-03-{timestamp.year}", "%d-%m-%Y")
             end_spring = datetime.strptime(f"20-06-{timestamp.year}", "%d-%m-%Y")
             begin_summer = datetime.strptime(f"21-06-{timestamp.year}", "%d-%m-%Y")
@@ -41,7 +41,7 @@ def get_season(hemisphere, date_now, format="%d-%m-%Y"):
             else:
                 return "Winter"
 
-        elif hemisphere == "sud":
+        elif hemisphere == "South":
             begin_spring = datetime.strptime(f"22-09-{timestamp.year}", "%d-%m-%Y")
             end_spring = datetime.strptime(f"20-12-{timestamp.year}", "%d-%m-%Y")
             begin_summer = datetime.strptime(f"21-12-{timestamp.year}", "%d-%m-%Y")
