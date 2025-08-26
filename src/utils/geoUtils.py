@@ -1,6 +1,8 @@
 import sys
 import os
-import time, random
+import time
+import random
+import json
 from pathlib import Path
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -14,6 +16,12 @@ from my_secrets.secrets import apikey
 
 
 OCG = OpenCageGeocode(apikey)
+
+current_dir = Path(__file__).parent
+constants_path = current_dir / 'constants.json'
+
+with open(constants_path, 'r') as file:
+    constants = json.load(file)
 
 
 def get_city_country(lat: float, lng: float):
@@ -111,5 +119,5 @@ def get_hemisphere(lat):
     """
     Détermine l'émisphère dans lequel se situe la position
     """
-    hemisphere = "nord" if lat > 0 else "sud" if lat < 0 else "equateur"
+    hemisphere = "North" if lat > 0 else "South" if lat < 0 else "equateur"
     return hemisphere
