@@ -4,12 +4,12 @@ import os
 import json
 import requests
 
-from utils.credentialsUtils import generate_credentials_google_drive
+from .credentialsUtils import generate_credentials_google_drive
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from my_secrets.secrets import headers, drive_folder_collected_data_id, bearer_token, drive_folder_logs
 from datetime import datetime
-from utils.loggerUtils import logger, timestamp_formatted
+from .loggerUtils import logger, timestamp_formatted
 
 
 def write_json(row, timestamp):

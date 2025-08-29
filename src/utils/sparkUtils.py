@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark.conf import SparkConf
-from utils.loggerUtils import logger
+from .loggerUtils import logger
 
 def create_spark_session():
     """Créer une session Spark compatible avec Java 17"""
