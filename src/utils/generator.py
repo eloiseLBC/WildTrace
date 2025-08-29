@@ -3,10 +3,11 @@ import random
 from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from utils.dataUtils import get_formatted_ddmmyyyy, is_night, get_season
-from utils.geoUtils import get_altitude, get_city_country, get_distance_from_equator, get_coastline_distance, \
-    get_hemisphere
-from utils.loggerUtils import logger
+
+from .dataUtils import get_formatted_ddmmyyyy, is_night, get_season
+from .geoUtils import (get_altitude, get_city_country, get_hemisphere, get_distance_from_equator,
+                                get_coastline_distance)
+from .loggerUtils import logger
 
 
 """
@@ -73,7 +74,7 @@ def generate_environment():
         "jungle",
         "field",
         "city_dense",
-        "city_airy"
+        "city_airy",
         "village",
         "indoors",
         "cloudy"
@@ -95,7 +96,8 @@ def generate_co2(environment):
         "cloudy":       (400, 700)
     }
     co2_range = co2_ranges_ppm.get(environment, (400, 600))
-    return co2_range
+    co2_concentration = random.randint(co2_range[0], co2_range[1])
+    return co2_concentration
 
 def generate_lat_lng(environment):
     lat_ranges = {

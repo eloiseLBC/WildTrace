@@ -1,6 +1,8 @@
 import sys
 import os
-import time, random
+import time
+import random
+import json
 from pathlib import Path
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -9,12 +11,17 @@ import requests
 import geopandas as gpd
 from shapely.geometry import Point
 from opencage.geocoder import OpenCageGeocode, RateLimitExceededError, InvalidInputError
-from src.utils.constants import dataset_altitude
-from src.utils.loggerUtils import logger
+from .loggerUtils import logger
 from my_secrets.secrets import apikey
 
 
 OCG = OpenCageGeocode(apikey)
+
+current_dir = Path(__file__).parent
+constants_path = current_dir / 'constants.json'
+
+with open(constants_path, 'r') as file:
+    constants = json.load(file)
 
 
 def get_city_country(lat: float, lng: float):
@@ -68,14 +75,14 @@ def get_altitude(lat, lng, max_retries=2, base_delay=1):
             if attempt < max_retries - 1:
                 time.sleep(delay)
 
-    # Fallback vers Open-Elevation
-    logger.info("GET ALTITUDE : Fallback vers Open-Elevation...")
+    # Fallback vers Open Topodata
+    logger.info("GET ALTITUDE : Fallback vers Open Topodata...")
     try:
-        url = f"https://api.open-elevation.com/api/v1/lookup?locations={lat},{lng}"
+        url = f"https://api.opentopodata.org/v1/srtm30m?locations={lat},{lng}"
         r = requests.get(url, timeout=15).json()
         return r['results'][0]['elevation']
     except Exception as ex:
-        logger.error(f"Open-Elevation aussi indisponible: {ex}. \nAltitude non trouvée.")
+        logger.error(f"Open Topodata aussi indisponible: {ex}. \nAltitude non trouvée.")
     return None
 
 
@@ -112,5 +119,5 @@ def get_hemisphere(lat):
     """
     Détermine l'émisphère dans lequel se situe la position
     """
-    hemisphere = "nord" if lat > 0 else "sud" if lat < 0 else "equateur"
+    hemisphere = "North" if lat > 0 else "South" if lat < 0 else "equateur"
     return hemisphere

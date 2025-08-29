@@ -24,17 +24,39 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
+          pip install coverage pytest-cov
 
-      - name: Run tests
+      - name: Run tests with coverage
         env:
           OPEN_CAGE_GEOCODE_APIKEY: ${{ secrets.OPEN_CAGE_GEOCODE_APIKEY }}
         run: |
           for file in test/*.py; do
             if [ -f "$file" ]; then
               echo "🫡Testing $file"
-              python -m pytest "$file" -v
+              coverage run --append -m pytest "$file" -v
             fi
           done
+
+      - name: Generate coverage reports
+        run: |
+          coverage report -m
+          coverage html
+          coverage xml
+
+      - name: Upload coverage HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html-report
+          path: htmlcov/
+          retention-days: 30
+
+      - name: Upload coverage XML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml-report
+          path: coverage.xml
+          retention-days: 30
+              
 
   check-source-branch:
     runs-on: ubuntu-latest

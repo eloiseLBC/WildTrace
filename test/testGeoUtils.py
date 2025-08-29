@@ -67,11 +67,11 @@ class GeoUtilsCase(unittest.TestCase):
     def test_north_hemisphere(self):
         """Test the get_hemisphere function with known latitude"""
         hemisphere = get_hemisphere(48.8566)
-        self.assertEqual(hemisphere, "nord")
+        self.assertEqual(hemisphere, "North")
 
     def test_south_hemisphere(self):
         hemisphere = get_hemisphere(-48.8566)
-        self.assertEqual(hemisphere, "sud")
+        self.assertEqual(hemisphere, "South")
 
 if __name__ == '__main__':
     unittest.main()
