@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .dataUtils import get_formatted_ddmmyyyy, is_night, get_season
 from .geoUtils import (get_altitude, get_city_country, get_hemisphere, get_distance_from_equator,
-                                get_coastline_distance)
+                                get_coastline_distance, constants)
 from .loggerUtils import logger
 
 
@@ -68,17 +68,7 @@ def get_luminosity(hour, is_night, environment):
         return luminosity
 
 def generate_environment():
-    category = [
-        "desert",
-        "mountain",
-        "jungle",
-        "field",
-        "city_dense",
-        "city_airy",
-        "village",
-        "indoors",
-        "cloudy"
-    ]
+    category = constants['environments']
     index = random.randint(0, len(category)-1)
     environment = category[index]
     return environment
