@@ -1,6 +1,7 @@
 import pandas as pd
 import optparse
 
+from storage.sendOracle import upload_to_bucket
 from utils.generator import activate_generator
 from utils.sparkUtils import create_spark_session
 from utils.writeUtils import write_json, write_log_drive
@@ -21,12 +22,17 @@ if __name__ == "__main__":
                       dest="generator",
                       action="store_true",
                       default=False,
-                      help="Activate the data generator mode")
+                      help="Activate the data generator mode (default: False)")
     parser.add_option("-s", "--spark",
                       dest="spark",
                       action="store_true",
                       default=False,
                       help="Launch Spark session (default: False)")
+    parser.add_option("-b", "--bucket",
+                      dest="bucket",
+                      default=False,
+                      help="Upload generated files to Oracle Cloud bucket (default: False)")
+
 
     (options, args) = parser.parse_args()
 
@@ -79,4 +85,12 @@ if __name__ == "__main__":
         write_log_drive()
 
         if json_object:
-            write_json(json_object, timestamp_str)
+            logger.info("----- Écriture des données générées au format JSON -----")
+            write_json(json_object, timestamp_str, options.generator)
+
+        if options.bucket:
+            logger.info("----- Upload des fichiers générées dans le bucket Oracle Cloud -----")
+            upload_to_bucket("data/output/generated/environmental_to_send/", "wildtrace-environmental")
+        else:
+            logger.info("Upload vers le bucket Oracle Cloud non activé.\nPour activer, utiliser l'option -b ou --bucket.")
+
