@@ -131,8 +131,8 @@ def generate_lat_lng(environment):
 
 def generate_one_row():
     try:
+        # Récupération des données par capteurs
         timestamp_str = generate_timestamp()
-
         timestamp_utc = datetime.strptime(timestamp_str, "%d-%m-%Y %H:%M:%S.%f").replace(tzinfo=timezone.utc)
         timestamp_utc = timestamp_utc.strftime("%d-%m-%Y %H:%M:%S")
         timestamp_utc = datetime.strptime(timestamp_utc, "%d-%m-%Y %H:%M:%S")
