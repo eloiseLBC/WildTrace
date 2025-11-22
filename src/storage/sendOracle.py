@@ -19,10 +19,15 @@ def connect_to_bucket():
     return object_storage, namespace
 
 
-def upload_to_bucket(folder_path, bucket_name):
+def upload_to_bucket(folder_path, bucket_name, options):
     object_storage, namespace = connect_to_bucket()
     print("Upload des fichiers vers le bucket Oracle Cloud...")
     folder = Path(folder_path)
+    bucket_path = ""
+    if options.generator_collected:
+        bucket_path = "generated/collected"
+    elif options.generator:
+        bucket_path = "generated/computed"
 
     if not folder.exists() or not folder.is_dir():
         print(f"No such directory: `{folder_path}`")
@@ -36,7 +41,7 @@ def upload_to_bucket(folder_path, bucket_name):
     for file in files:
         print("Uploading file:", file.name)
         with file.open("rb") as f:
-            object_storage.put_object(namespace, bucket_name, f"environmental_to_compute/{file.name}", f)
+            object_storage.put_object(namespace, bucket_name, f"{bucket_path}/{file.name}", f)
             print("→", file.name, "uploadé.")
         # Move file to 'uploaded' subfolder
         uploaded_folder = folder / "uploaded"

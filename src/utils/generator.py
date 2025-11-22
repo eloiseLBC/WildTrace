@@ -152,6 +152,7 @@ def generate_one_row():
             "luminosity": luminosity,
             "concentration_co2": concentration_co2,
             "environment": environment,
+            "ultra_violet_index": random.randint(0, 11),
             **get_city_country(lat, lng),
             "altitude": altitude,
             **get_distance_from_equator(lat),
@@ -167,6 +168,49 @@ def generate_one_row():
         logger.error(f"Erreur dans generate_one_row : {e}", exc_info=True)
         raise
 
+def generate_one_collected_row():
+    try:
+        # Récupération des données par capteurs
+        timestamp_str = generate_timestamp()
+        timestamp_utc = datetime.strptime(timestamp_str, "%d-%m-%Y %H:%M:%S.%f").replace(tzinfo=timezone.utc)
+        timestamp_utc = timestamp_utc.strftime("%d-%m-%Y %H:%M:%S")
+        timestamp_utc = datetime.strptime(timestamp_utc, "%d-%m-%Y %H:%M:%S")
+
+        hour = timestamp_utc.hour
+        environment = generate_environment()
+        altitude = None
+
+        while altitude is None:
+            lat, lng = generate_lat_lng(environment)
+            altitude = get_altitude(lat, lng)
+
+        temperature = generate_temperature()
+        humidity = generate_humidity()
+        pression = generate_pression(altitude)
+        luminosity = get_luminosity(hour, is_night(lat, lng, timestamp_utc), environment)
+        concentration_co2 = generate_co2(environment)
+
+        row = {
+            "timestamp": timestamp_str,
+            "formatted_ddmmyyyy": get_formatted_ddmmyyyy(timestamp_str),
+            "latitude": lat,
+            "longitude": lng,
+            "temperature": temperature,
+            "humidity": humidity,
+            "pression": pression,
+            "luminosity": luminosity,
+            "concentration_co2": concentration_co2,
+            "environment": environment,
+            "ultra_violet_index": random.randint(0, 11),
+            "altitude": altitude
+        }
+
+        return row
+
+    except Exception as e:
+        logger.error(f"Erreur dans generate_one_collected_row : {e}", exc_info=True)
+        raise
+
 
 def activate_generator(json_object):
     """
@@ -176,6 +220,21 @@ def activate_generator(json_object):
         # Utilisation de ThreadPoolExecutor pour la génération parallèle
         # Warning : le nombre d'objets générés est à 2 pour tester
         futures = [executor.submit(generate_one_row) for _ in range(2)]
+        for future in as_completed(futures):
+            row = future.result()
+            if row:
+                json_object.append(row)
+                logger.info(f"Row générée : {row}")
+        return json_object
+
+def activate_generator_collected(json_object):
+    """
+    Active le mode générateur de données.
+    """
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        # Utilisation de ThreadPoolExecutor pour la génération parallèle
+        # Warning : le nombre d'objets générés est à 2 pour tester
+        futures = [executor.submit(generate_one_collected_row) for _ in range(2)]
         for future in as_completed(futures):
             row = future.result()
             if row:
