@@ -1,3 +1,4 @@
 venv/
 my_secrets/
 data/output/
+.oci/

@@ -1,7 +1,13 @@
 {
   "environments": [
     "Jungle",
-    "Montagne",
-    "Desert"
+    "Mountain",
+    "Desert",
+    "Field",
+    "City Dense",
+    "City Airy",
+    "Village",
+    "Indoors",
+    "Cloudy"
   ]
 }

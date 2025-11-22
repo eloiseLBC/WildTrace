@@ -1,9 +1,10 @@
 import pandas as pd
 import optparse
 
-from utils.generator import activate_generator
+from storage.sendOracle import upload_to_bucket
+from utils.generator import activate_generator, activate_generator_collected
 from utils.sparkUtils import create_spark_session
-from utils.writeUtils import write_json, write_log_drive
+from utils.writeUtils import write_json
 from datetime import datetime
 from utils.loggerUtils import logger, timestamp_str
 
@@ -21,12 +22,21 @@ if __name__ == "__main__":
                       dest="generator",
                       action="store_true",
                       default=False,
-                      help="Activate the data generator mode")
+                      help="Activate the data generator mode (default: False)")
+    parser.add_option("--generator-collected",
+                      dest="generator_collected",
+                      default=False,
+                      help="Generate data as collected data only.\n On other hand, -g option allows to generate complete test data, after collecting and computing.\n (default: False)")
     parser.add_option("-s", "--spark",
                       dest="spark",
                       action="store_true",
                       default=False,
                       help="Launch Spark session (default: False)")
+    parser.add_option("-b", "--bucket",
+                      dest="bucket",
+                      default=False,
+                      help="Upload generated files to Oracle Cloud bucket (default: False)")
+
 
     (options, args) = parser.parse_args()
 
@@ -35,7 +45,7 @@ if __name__ == "__main__":
 
     try:
         if options.generator:
-            logger.info("----- Partie data generator -----")
+            logger.info("----- Partie data generator : full -----")
             try:
                 json_object = activate_generator(json_object)
                 if options.spark:
@@ -60,6 +70,16 @@ if __name__ == "__main__":
 
             except Exception as e:
                 logger.error(f"Erreur data generator : {e}")
+        elif options.generator_collected:
+            logger.info("----- Partie data generator : collected -----")
+            try:
+                json_object = activate_generator_collected(json_object)
+                df = pd.DataFrame(json_object)
+                logger.info(f"DataFrame Pandas créé avec {len(df)} lignes")
+                print(df.head())
+
+            except Exception as e:
+                logger.error(f"Erreur data generator : {e}")
 
         else:
             print("Mode normal (générateur non activé)")
@@ -76,7 +96,17 @@ if __name__ == "__main__":
             spark.stop()
             logger.info("Session Spark fermée")
 
-        write_log_drive()
-
         if json_object:
-            write_json(json_object, timestamp_str)
+            logger.info("----- Écriture des données générées au format JSON -----")
+            write_json(json_object, timestamp_str, options)
+
+        if options.bucket and options.generator:
+            logger.info("----- Upload des fichiers générées (option -g) dans le bucket Oracle Cloud -----")
+            upload_to_bucket("data/output/generated/environmental_to_send/computed/", "wildtrace-environmental", options)
+        if options.bucket and options.generator_collected:
+            logger.info("----- Upload des fichiers générées (option -gc) dans le bucket Oracle Cloud -----")
+            upload_to_bucket("data/output/generated/environmental_to_send/collected/", "wildtrace-environmental", options)
+        elif options.bucket :
+            logger.info("Upload vers le bucket Oracle Cloud non activé.")
+            logger.info("Pour activer, utiliser l'option -b ou --bucket, ainsi qu'une des options du generator.")
+

@@ -50,7 +50,7 @@ class MyTestCase(unittest.TestCase):
 
     def test_generate_environment(self):
         env = generate_environment()
-        self.assertIn(env, ["desert", "mountain", "jungle", "field", "city_dense", "city_airy", "village", "indoors", "cloudy"], "Environment should be valid")
+        self.assertIn(env, ["Desert", "Mountain", "Jungle", "Field", "City Dense", "City Airy", "Village", "Indoors", "Cloudy"], "Environment should be valid")
 
     def test_generate_co2(self):
         co2 = generate_co2("desert")
