@@ -12,12 +12,20 @@ from datetime import datetime
 from .loggerUtils import logger, timestamp_formatted
 
 
-def write_json(row, timestamp, option_generator):
+def write_json(row, timestamp, options):
     timestamp_file = datetime.strptime(timestamp, "%d-%m-%Y %H:%M:%S.%f")
     timestamp_formatted = timestamp_file.strftime(f"%d-%m-%Y-%H-%M-%S")
     filename = f"collect_process_data_{timestamp_formatted}.json"
-    path = f"data/output/generated/environmental_to_send/{filename}" if option_generator is True else f"data/output/collected/environmental_to_send{filename}"
-    with open(path, "w") as f:
+
+    if options.generator:
+        path = f"data/output/generated/environmental_to_send/computed"
+    elif options.generator_collected:
+        path = f"data/output/generated/environmental_to_send/collected"
+    else:
+        path = f"data/output/collected/environmental_to_send"
+    # Créer le répertoire s'il n'existe pas
+    os.makedirs(os.path.dirname(f"{path}/"), exist_ok=True)
+    with open(f"{path}/{filename}", "w") as f:
         json.dump(row, f, indent=2)
         # Permet de synchroniser le système et que s'il y a lecture le fichier soit bien trouvé
         f.flush()
@@ -74,79 +82,3 @@ def build_multipart_body(metadata, file_data, boundary="foo_bar_baz"):
     ).encode("utf-8") + file_data + f"\r\n--{boundary}--".encode("utf-8")
 
     return meta_part + file_part
-
-
-def upload_file_to_drive(filepath, filename, parent_folder_id):
-    """
-        Sauvegarde un JSON dans Google Drive (upload multipart).
-        Args:
-            filepath (str): Chemin complet du fichier à écrire.
-            filename (str): Nom du fichier dans Google Drive.
-            parent_folder_id (str): ID du dossier Drive cible.
-    """
-    try:
-        # Lecture binaire
-        with open(filepath, "rb") as f:
-            file_content = f.read()
-        if not file_content:
-            if logger:
-                logger.error("Le fichier est vide après écriture. Upload annulé.")
-            return None
-    except Exception as e:
-        if logger:
-            logger.error(f"Erreur lors de la lecture du fichier : {e}")
-        return None
-
-    try:
-        # Construction multipart
-        url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart"
-        metadata = {
-            "name": filename,
-            "parents": [parent_folder_id]
-        }
-
-        files = {
-            "metadata": ("metadata", json.dumps(metadata), "application/json; charset=UTF-8"),
-            "file": (filename, io.BytesIO(file_content), "application/json")
-        }
-
-        # Requête HTTP vers Google Drive
-        response = requests.post(url, headers=headers, files=files)
-        response.raise_for_status()
-
-        file_id = response.json()["id"]
-        if logger:
-            logger.info(f"Upload réussi : {filename} (ID: {file_id})")
-        return file_id
-
-    except requests.exceptions.RequestException as e:
-        if logger:
-            logger.error(f"Erreur HTTP lors de l’upload : {e}")
-            if hasattr(e, 'response') and e.response is not None and e.response.status_code != 401:
-                logger.error(f"Détail : {e.response.text}")
-            elif e.response.status_code == 401:
-                logger.warning("Erreur d'authentification (401). Génération de nouveaux credentials.")
-                generate_credentials_google_drive()
-        return None
-
-
-def write_log_drive():
-    logfile_name = f"wildtrace-{timestamp_formatted}.log"
-    logfile_path = f"logs/{logfile_name}"
-    filename = os.path.basename(logfile_path)
-
-    if not os.path.exists(logfile_path):
-        if logger:
-            logger.warning(f"Fichier log introuvable : {logfile_path}")
-        return None
-
-    if os.path.getsize(logfile_path) == 0:
-        if logger:
-            logger.warning("Fichier log vide. Aucun upload.")
-        return None
-
-    return upload_file_to_drive(
-        filepath=logfile_path,
-        filename=filename,
-        parent_folder_id=drive_folder_logs
-    )
