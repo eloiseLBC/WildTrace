@@ -1,5 +1,6 @@
 import pandas as pd
 import optparse
+import os
 
 from storage.sendOracle import upload_to_bucket
 from utils.generator import activate_generator, activate_generator_collected
@@ -18,8 +19,8 @@ if __name__ == "__main__":
     parser = optparse.OptionParser()
 
     # add options
-    parser.add_option("-g", "--generator",
-                      dest="generator",
+    parser.add_option("-g", "--generator-computed",
+                      dest="generator_computed",
                       action="store_true",
                       default=False,
                       help="Activate the data generator mode (default: False)")
@@ -44,29 +45,39 @@ if __name__ == "__main__":
     json_object = []
 
     try:
-        if options.generator:
-            logger.info("----- Partie data generator : full -----")
+        if options.generator_computed:
+            logger.info("----- Partie data generator : computed -----")
             try:
-                json_object = activate_generator(json_object)
-                if options.spark:
-                    # Créer la session Spark avec la configuration appropriée
-                    spark = create_spark_session()
+                collected_dir = './data/output/generated/environmental_to_send/collected/'
+                collected_files_data = []
+                if os.path.isdir(collected_dir):
+                    for file in os.listdir(collected_dir):
+                        if file.endswith('.json'):
+                            logger.info(f"file found: {file}")
+                            path = os.path.join(collected_dir, file)
+                            logger.info(f"JSON object passé au generator: {json_object}")
+                            json_object = activate_generator(json_object, file)
+                            if options.spark:
+                                # Créer la session Spark avec la configuration appropriée
+                                spark = create_spark_session()
 
-                    # Test simple avec Spark pour vérifier que ça fonctionne
-                    if json_object and spark is not None:
-                        logger.info("----- Test Spark DataFrame -----")
-                        try:
-                            spark_df = spark.createDataFrame(json_object)
-                            logger.info(f"DataFrame Spark créé avec {spark_df.count()} lignes")
-                            spark_df.printSchema()
-                            spark_df.show(truncate=False)
-                        except Exception as e:
-                            logger.error(f"Erreur avec Spark DataFrame : {e}")
-                else:
-                    logger.info("----- Utilisation de Pandas (Spark non disponible) -----")
-                    df = pd.DataFrame(json_object)
-                    logger.info(f"DataFrame Pandas créé avec {len(df)} lignes")
-                    print(df.head())
+                                # Test simple avec Spark pour vérifier que ça fonctionne
+                                if json_object and spark is not None:
+                                    logger.info("----- Test Spark DataFrame -----")
+                                    try:
+                                        spark_df = spark.createDataFrame(json_object)
+                                        logger.info(f"DataFrame Spark créé avec {spark_df.count()} lignes")
+                                        spark_df.printSchema()
+                                        spark_df.show(truncate=False)
+                                    except Exception as e:
+                                        logger.error(f"Erreur avec Spark DataFrame : {e}")
+                            else:
+                                logger.info("----- Utilisation de Pandas (Spark non disponible) -----")
+                                df = pd.DataFrame(json_object)
+                                logger.info(f"DataFrame Pandas créé avec {len(df)} lignes")
+                                print(df.head())
+                                logger.info("----- Écriture des données générées au format JSON -----")
+                                write_json(json_object, timestamp_str, options, file)
 
             except Exception as e:
                 logger.error(f"Erreur data generator : {e}")
@@ -96,17 +107,17 @@ if __name__ == "__main__":
             spark.stop()
             logger.info("Session Spark fermée")
 
-        if json_object:
+        if json_object and not options.generator_computed:
             logger.info("----- Écriture des données générées au format JSON -----")
-            write_json(json_object, timestamp_str, options)
+            write_json(json_object, timestamp_str, options, None)
 
-        if options.bucket and options.generator:
+        if options.bucket and options.generator_computed:
             logger.info("----- Upload des fichiers générées (option -g) dans le bucket Oracle Cloud -----")
             upload_to_bucket("data/output/generated/environmental_to_send/computed/", "wildtrace-environmental", options)
         if options.bucket and options.generator_collected:
             logger.info("----- Upload des fichiers générées (option -gc) dans le bucket Oracle Cloud -----")
             upload_to_bucket("data/output/generated/environmental_to_send/collected/", "wildtrace-environmental", options)
-        elif options.bucket :
+        elif options.bucket and not (options.generator_computed or options.generator_collected):
             logger.info("Upload vers le bucket Oracle Cloud non activé.")
             logger.info("Pour activer, utiliser l'option -b ou --bucket, ainsi qu'une des options du generator.")
 

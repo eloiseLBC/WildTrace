@@ -10,7 +10,7 @@ if 'OPEN_CAGE_GEOCODE_APIKEY' in os.environ:
     sys.modules['my_secrets.secrets'] = secrets_module
 
 from src.utils.generator import (generate_timestamp, generate_temperature, generate_humidity, generate_pression,
-                                 generate_co2, generate_environment, generate_lat_lng, generate_one_row, get_luminosity)
+                                 generate_co2, generate_environment, generate_lat_lng, generate_computed, get_luminosity)
 from datetime import datetime
 
 class MyTestCase(unittest.TestCase):
@@ -69,7 +69,7 @@ class MyTestCase(unittest.TestCase):
 
 
     def test_generate_one_row(self):
-        row = generate_one_row()
+        row = generate_computed()
         self.assertIsInstance(row, dict, "Generated row should be a dictionary")
         expected_keys = {"timestamp", "formatted_ddmmyyyy", "latitude", "longitude", "temperature",
                          "humidity", "pression", "luminosity", "concentration_co2", "environment",

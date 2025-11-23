@@ -12,12 +12,12 @@ from datetime import datetime
 from .loggerUtils import logger, timestamp_formatted
 
 
-def write_json(row, timestamp, options):
+def write_json(row, timestamp, options, filename):
     timestamp_file = datetime.strptime(timestamp, "%d-%m-%Y %H:%M:%S.%f")
     timestamp_formatted = timestamp_file.strftime(f"%d-%m-%Y-%H-%M-%S")
-    filename = f"collect_process_data_{timestamp_formatted}.json"
+    filename = f"collect_process_data_{timestamp_formatted}.json" if filename is None else filename
 
-    if options.generator:
+    if options.generator_computed:
         path = f"data/output/generated/environmental_to_send/computed"
     elif options.generator_collected:
         path = f"data/output/generated/environmental_to_send/collected"
