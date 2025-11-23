@@ -26,7 +26,7 @@ def upload_to_bucket(folder_path, bucket_name, options):
     bucket_path = ""
     if options.generator_collected:
         bucket_path = "generated/collected"
-    elif options.generator:
+    elif options.generator_computed:
         bucket_path = "generated/computed"
 
     if not folder.exists() or not folder.is_dir():
