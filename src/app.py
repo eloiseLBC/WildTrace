@@ -1,8 +1,9 @@
 import pandas as pd
 import optparse
 import os
+import time
 
-from storage.sendOracle import upload_to_bucket
+from storage.sendOracle import upload_to_bucket, files_exist, internet_available
 from utils.generator import activate_generator, activate_generator_collected
 #from utils.sparkUtils import create_spark_session
 from utils.writeUtils import write_json
@@ -119,6 +120,15 @@ if __name__ == "__main__":
             logger.info("----- Upload des fichiers générées (option -gc) dans le bucket Oracle Cloud -----")
             upload_to_bucket("data/output/generated/environmental_to_send/collected/", "wildtrace-environmental", options)
         elif options.bucket and not (options.generator_computed or options.generator_collected):
-            logger.info("Upload vers le bucket Oracle Cloud non activé.")
-            logger.info("Pour activer, utiliser l'option -b ou --bucket, ainsi qu'une des options du generator.")
-
+            logger.info("Test de la connexion internet avant upload...")
+            nb_try = 0
+            for nb_try in range(5):
+                if internet_available():
+                    logger.info("Connexion internet détectée.")
+                    if files_exist:
+                        logger.info("Fichiers détectés pour l'upload. Envoie des fichiers de : /data/output/generated/environmental_to_send/collected ...")
+                        upload_to_bucket("data/output/generated/environmental_to_send/collected/", "wildtrace-environmental", options)
+                    break
+                else:
+                    logger.warning(f"Pas de connexion internet. Nouvelle tentative dans 1 minute... (Tentative {nb_try + 1}/5)")
+                    time.sleep(60)

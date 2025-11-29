@@ -1,5 +1,29 @@
 from pathlib import Path
 import oci
+import subprocess
+import os
+
+def internet_available():
+    result = subprocess.run(
+        ["ping", "-c", "1", "1.1.1.1"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+    return result.returncode == 0
+
+def files_exist():
+    folder = Path("data/output/generated/environmental_to_send/collected/")
+    if not folder.exists() or not folder.is_dir():
+        print(f"No such directory: `{folder}`")
+        return False
+
+    files = [f for f in folder.glob("*") if f.is_file()]
+    if not files:
+        print(f"No files found in folder: `{folder}`")
+        return False
+
+    print(f"Files found in folder: `{folder}`")
+    return True 
 
 def connect_to_bucket():
     print("Connexion au bucket Oracle Cloud...")
