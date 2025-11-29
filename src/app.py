@@ -4,7 +4,7 @@ import os
 
 from storage.sendOracle import upload_to_bucket
 from utils.generator import activate_generator, activate_generator_collected
-from utils.sparkUtils import create_spark_session
+#from utils.sparkUtils import create_spark_session
 from utils.writeUtils import write_json
 from datetime import datetime
 from utils.loggerUtils import logger, timestamp_str
@@ -58,19 +58,20 @@ if __name__ == "__main__":
                             logger.info(f"JSON object passé au generator: {json_object}")
                             json_object = activate_generator(json_object, file)
                             if options.spark:
-                                # Créer la session Spark avec la configuration appropriée
-                                spark = create_spark_session()
+                                ## Créer la session Spark avec la configuration appropriée
+                                #spark = create_spark_session()
 
                                 # Test simple avec Spark pour vérifier que ça fonctionne
-                                if json_object and spark is not None:
-                                    logger.info("----- Test Spark DataFrame -----")
-                                    try:
-                                        spark_df = spark.createDataFrame(json_object)
-                                        logger.info(f"DataFrame Spark créé avec {spark_df.count()} lignes")
-                                        spark_df.printSchema()
-                                        spark_df.show(truncate=False)
-                                    except Exception as e:
-                                        logger.error(f"Erreur avec Spark DataFrame : {e}")
+                                #if json_object and spark is not None:
+                                #    logger.info("----- Test Spark DataFrame -----")
+                                #    try:
+                                #        spark_df = spark.createDataFrame(json_object)
+                                #        logger.info(f"DataFrame Spark créé avec {spark_df.count()} lignes")
+                                #        spark_df.printSchema()
+                                #        spark_df.show(truncate=False)
+                                #    except Exception as e:
+                                #        logger.error(f"Erreur avec Spark DataFrame : {e}")
+                                logger.warn("Pas de lancement avec spark pour le moment. Installation non surportée par le RaspeberryPi, et non nécessaire actuellement.")
                             else:
                                 logger.info("----- Utilisation de Pandas (Spark non disponible) -----")
                                 df = pd.DataFrame(json_object)
@@ -103,9 +104,9 @@ if __name__ == "__main__":
         logger.info(f"Durée du programme : {duree}")
 
         # Fermer la session Spark
-        if 'spark' in locals() and spark is not None:
-            spark.stop()
-            logger.info("Session Spark fermée")
+        # if 'spark' in locals() and spark is not None:
+            #spark.stop()
+            #logger.info("Session Spark fermée")
 
         if json_object and not options.generator_computed:
             logger.info("----- Écriture des données générées au format JSON -----")
