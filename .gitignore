@@ -2,3 +2,6 @@ venv/
 my_secrets/
 data/output/
 .oci/
+logs/
+src/storage/__pycache__/
+src/utils/__pycache__/
