@@ -120,15 +120,19 @@ if __name__ == "__main__":
             logger.info("----- Upload des fichiers générées (option -gc) dans le bucket Oracle Cloud -----")
             upload_to_bucket("data/output/generated/environmental_to_send/collected/", "wildtrace-environmental", options)
         elif options.bucket and not (options.generator_computed or options.generator_collected):
+            logger.info("----- Upload des fichiers générées dans le bucket Oracle Cloud -----")
             logger.info("Test de la connexion internet avant upload...")
             nb_try = 0
             for nb_try in range(5):
                 if internet_available():
                     logger.info("Connexion internet détectée.")
-                    if files_exist:
+                    if files_exist():
                         logger.info("Fichiers détectés pour l'upload. Envoie des fichiers de : /data/output/generated/environmental_to_send/collected ...")
                         upload_to_bucket("data/output/generated/environmental_to_send/collected/", "wildtrace-environmental", options)
-                    break
+                        break
+                    else:
+                        logger.info(f"Aucun fichier à envoyer. Nouvelle tentative dans 5 minutes... (Tentative {nb_try + 1}/5)")
+                        time.sleep(300)
                 else:
-                    logger.warning(f"Pas de connexion internet. Nouvelle tentative dans 1 minute... (Tentative {nb_try + 1}/5)")
-                    time.sleep(60)
+                    logger.warning(f"Pas de connexion internet. Nouvelle tentative dans 5 minutes... (Tentative {nb_try + 1}/5)")
+                    time.sleep(300)
