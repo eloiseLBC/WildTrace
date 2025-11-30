@@ -1,20 +1,48 @@
 from pathlib import Path
 import oci
+import subprocess
+import os
+from utils.loggerUtils import logger, timestamp_str
+
+
+def internet_available():
+    result = subprocess.run(
+        ["ping", "-c", "1", "1.1.1.1"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+    return result.returncode == 0
+
+def files_exist():
+    folder = Path("data/output/generated/environmental_to_send/collected/")
+    if not folder.exists() or not folder.is_dir():
+        logger.info(f"No such directory: `{folder}`")
+        return False
+
+    files = [f for f in folder.glob("*.json") if f.is_file()]
+    if not files:
+        logger.info(f"No files found in folder: `{folder}`")
+        return False
+    
+    
+
+    logger.info(f"Files found in folder: `{folder}`")
+    return True 
 
 def connect_to_bucket():
-    print("Connexion au bucket Oracle Cloud...")
+    logger.info("Connexion au bucket Oracle Cloud...")
     # Charger la configuration OCI à partir du fichier config
     config = oci.config.from_file(".oci/config")
     # Créer le client Object Storage
     object_storage = oci.object_storage.ObjectStorageClient(config)
     # Récupérer le namespace
     namespace = object_storage.get_namespace().data
-    print(f"Connecté au namespace : {namespace}")
+    logger.info(f"Connecté au namespace : {namespace}")
 
     # Exemple : lister les buckets
     buckets = object_storage.list_buckets(namespace, config["tenancy"])
     for b in buckets.data:
-        print("-", b.name)
+        logger.info(f"-{b.name}")
 
     return object_storage, namespace
 
@@ -26,7 +54,7 @@ def upload_to_bucket(folder_path, bucket_name, options):
     bucket_path = ""
     if options.generator_collected:
         bucket_path = "generated/collected"
-    elif options.generator:
+    elif options.generator_computed:
         bucket_path = "generated/computed"
 
     if not folder.exists() or not folder.is_dir():
