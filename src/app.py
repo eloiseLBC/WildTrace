@@ -2,6 +2,7 @@ import pandas as pd
 import optparse
 import os
 
+from utils.collector import get_humidity_temperature
 from storage.sendOracle import upload_to_bucket
 from utils.generator import activate_generator, activate_generator_collected
 #from utils.sparkUtils import create_spark_session
@@ -95,6 +96,7 @@ if __name__ == "__main__":
 
         else:
             print("Mode normal (générateur non activé)")
+            get_humidity_temperature()
             exit(0)
 
     except Exception as e:
