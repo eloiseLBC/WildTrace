@@ -1,15 +1,18 @@
 import os
+import sys
 import json
 import math
 import random
 from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from .dataUtils import get_formatted_ddmmyyyy, is_night, get_season
 from .geoUtils import (get_altitude, get_city_country, get_hemisphere, get_distance_from_equator,
                                 get_coastline_distance, constants)
 from .loggerUtils import logger, log_file
+from my_secrets.secrets import generated_collected_data_dir
 
 """
 TODO: Générer des fausses données pour ces clés
@@ -252,7 +255,7 @@ def activate_generator(json_object, file):
     """
     with ThreadPoolExecutor(max_workers=10) as executor:
         # Utilisation de ThreadPoolExecutor pour la génération parallèle
-        collected_dir = f'./data/output/generated/environmental_to_send/collected/{file}'
+        collected_dir = f'./{generated_collected_data_dir}/{file}'
         collected_files_data = []
         try:
             with open(collected_dir, 'r', encoding='utf-8') as f:

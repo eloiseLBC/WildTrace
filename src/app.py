@@ -1,6 +1,8 @@
 import pandas as pd
 import optparse
 import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from utils.collector import get_humidity_temperature
 from storage.sendOracle import upload_to_bucket
@@ -9,6 +11,8 @@ from utils.generator import activate_generator, activate_generator_collected
 from utils.writeUtils import write_json
 from datetime import datetime
 from utils.loggerUtils import logger, timestamp_str
+from my_secrets.secrets import generated_collected_data_dir
+
 
 
 df = pd.DataFrame()
@@ -49,7 +53,7 @@ if __name__ == "__main__":
         if options.generator_computed:
             logger.info("----- Partie data generator : computed -----")
             try:
-                collected_dir = './data/output/generated/environmental_to_send/collected/'
+                collected_dir = f'{generated_collected_data_dir}'
                 collected_files_data = []
                 if os.path.isdir(collected_dir):
                     for file in os.listdir(collected_dir):
@@ -119,7 +123,7 @@ if __name__ == "__main__":
             upload_to_bucket("data/output/generated/environmental_to_send/computed/", "wildtrace-environmental", options)
         if options.bucket and options.generator_collected:
             logger.info("----- Upload des fichiers générées (option -gc) dans le bucket Oracle Cloud -----")
-            upload_to_bucket("data/output/generated/environmental_to_send/collected/", "wildtrace-environmental", options)
+            upload_to_bucket(f"{generated_collected_data_dir}/", "wildtrace-environmental", options)
         elif options.bucket and not (options.generator_computed or options.generator_collected):
             logger.info("Upload vers le bucket Oracle Cloud non activé.")
             logger.info("Pour activer, utiliser l'option -b ou --bucket, ainsi qu'une des options du generator.")

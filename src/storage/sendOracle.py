@@ -5,12 +5,13 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from utils.loggerUtils import logger, log_file
+from my_secrets.secrets import config_oci_path
 
 
 def connect_to_bucket():
     logger.info("Connexion au bucket Oracle Cloud...")
     # Charger la configuration OCI à partir du fichier config
-    config = oci.config.from_file(".oci/config")
+    config = oci.config.from_file(config_oci_path)
     # Créer le client Object Storage
     object_storage = oci.object_storage.ObjectStorageClient(config)
     # Récupérer le namespace

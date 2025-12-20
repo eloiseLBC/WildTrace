@@ -5,7 +5,7 @@ import json
 import requests
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-from my_secrets.secrets import headers, drive_folder_collected_data_id, bearer_token, drive_folder_logs
+from my_secrets.secrets import headers, drive_folder_collected_data_id, bearer_token, drive_folder_logs, generated_collected_data_dir
 from datetime import datetime
 from .loggerUtils import logger, timestamp_formatted
 
@@ -18,9 +18,9 @@ def write_json(row, timestamp, options, filename):
     if options.generator_computed:
         path = f"data/output/generated/environmental_to_send/computed"
     elif options.generator_collected:
-        path = f"data/output/generated/environmental_to_send/collected"
+        path = f"{generated_collected_data_dir}"
     else:
-        path = f"data/output/collected/environmental_to_send"
+        path = f"/home/eloise/Desktop/WildTrace/data/output/collected/environmental_to_send"
     # Créer le répertoire s'il n'existe pas
     os.makedirs(os.path.dirname(f"{path}/"), exist_ok=True)
     with open(f"{path}/{filename}", "w") as f:
