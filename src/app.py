@@ -72,7 +72,7 @@ if __name__ == "__main__":
                                 #        spark_df.show(truncate=False)
                                 #    except Exception as e:
                                 #        logger.error(f"Erreur avec Spark DataFrame : {e}")
-                                logger.warn("Pas de lancement avec spark pour le moment. Installation non surportée par le RaspeberryPi, et non nécessaire actuellement.")
+                                logger.warn("Pas de lancement avec spark pour le moment. Installation non surportée par le RaspberryPi, et non nécessaire actuellement.")
                             else:
                                 logger.info("----- Utilisation de Pandas (Spark non disponible) -----")
                                 df = pd.DataFrame(json_object)
