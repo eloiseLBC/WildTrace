@@ -1,6 +1,12 @@
 import logging
+import sys
+import os
 from pathlib import Path
 from datetime import datetime
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
+from my_secrets.secrets import log_dir
 
 timestamp_str = datetime.now().strftime("%d-%m-%Y %H:%M:%S.%f")
 timestamp_file = datetime.strptime(timestamp_str, "%d-%m-%Y %H:%M:%S.%f")
@@ -21,7 +27,7 @@ console_handler = logging.StreamHandler()
 console_handler.setFormatter(formatter)
 
 # Handler fichier
-log_dir = Path("logs")
+log_dir = Path(log_dir)
 log_dir.mkdir(exist_ok=True)
 log_file = log_dir / f"wildtrace-{timestamp_formatted}.log"
 file_handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
