@@ -95,7 +95,7 @@ if __name__ == "__main__":
                 logger.error(f"Erreur data generator : {e}")
 
         else:
-            print("Mode normal (générateur non activé)")
+            logger.info("Mode collecte de données")
             get_humidity_temperature()
             exit(0)
 
