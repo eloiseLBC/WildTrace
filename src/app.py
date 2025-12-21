@@ -99,11 +99,19 @@ if __name__ == "__main__":
                 logger.error(f"Erreur data generator : {e}")
 
         else:
-            logger.info("Mode collecte de données")
-            get_humidity_temperature()
-            lat, lon, alt = read_gps_position()
-            logger.info(f"Position GPS : Latitude={lat}, Longitude={lon}, Altitude={alt} m")
-            logger.info("Fin de la collecte de données")
+            logger.info("----- Mode collecte de données -----")
+            temperature, pressure = get_humidity_temperature()
+            latitude, longitude, altitude = read_gps_position()
+            row = {
+                "temperature_C": temperature,
+                "pressure_hPa": pressure,
+                "latitude": latitude,
+                "longitude": longitude,
+                "altitude_m": altitude
+            }
+            json_object.append(row)
+            logger.info(f"Données collectées : {row}")
+            logger.info("----- Fin du mode collecte de données -----")
             exit(0)
 
     except Exception as e:
@@ -116,11 +124,15 @@ if __name__ == "__main__":
         # if 'spark' in locals() and spark is not None:
             #spark.stop()
             #logger.info("Session Spark fermée")
+            
+        logger.info(f"Taille des arguments passés au script : {len(sys.argv)}")
 
-        if json_object and not options.generator_computed:
+        if json_object and len(sys.argv) == 1:
+            logger.info("----- Écriture des données collectées au format JSON -----")
+            write_json(json_object, timestamp_str, options, None)
+        if json_object and not options.generator_computed and options.generator_collected:
             logger.info("----- Écriture des données générées au format JSON -----")
             write_json(json_object, timestamp_str, options, None)
-
         if options.bucket and options.generator_computed:
             logger.info("----- Upload des fichiers générées (option -g) dans le bucket Oracle Cloud -----")
             upload_to_bucket("data/output/generated/environmental_to_send/computed/", "wildtrace-environmental", options)

@@ -63,6 +63,8 @@ def read_gps_position(timeout=30):
             lat = nmea_to_decimal(parts[2], parts[3])
             lon = nmea_to_decimal(parts[4], parts[5])
             alt = float(parts[9]) if parts[9] else None
+            
+            logger.info(f"Position GPS : Latitude={lat}, Longitude={lon}, Altitude={alt} m")
 
             return lat, lon, alt
 
