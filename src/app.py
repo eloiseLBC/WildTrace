@@ -4,7 +4,7 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from utils.collector import get_humidity_temperature
+from utils.collector import get_humidity_temperature, read_gps_position
 from storage.sendOracle import upload_to_bucket
 from utils.generator import activate_generator, activate_generator_collected
 #from utils.sparkUtils import create_spark_session
@@ -101,6 +101,9 @@ if __name__ == "__main__":
         else:
             logger.info("Mode collecte de données")
             get_humidity_temperature()
+            lat, lon, alt = read_gps_position()
+            logger.info(f"Position GPS : Latitude={lat}, Longitude={lon}, Altitude={alt} m")
+            logger.info("Fin de la collecte de données")
             exit(0)
 
     except Exception as e:
