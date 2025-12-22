@@ -71,6 +71,8 @@ def read_gps_position(timeout=30):
             logger.info(f"Position GPS : Latitude={lat}, Longitude={lon}, Altitude={alt} m")
 
             return lat, lon, alt
+        if start + timeout <= time.time():
+            logger.error("Timeout atteint sans obtenir de fix GPS.")
     except Exception as e:
         logger.error(f"Erreur lors de la lecture du GPS : {e}")
 
