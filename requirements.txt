@@ -33,7 +33,7 @@ oci==2.164.0
 opencage==3.1.0
 packaging==25.0
 pandas==2.2.3
-pluggy==0.13.1
+pluggy==1.2.0
 propcache==0.3.2
 protobuf==6.30.2
 pycparser==2.23
