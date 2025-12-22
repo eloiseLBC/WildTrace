@@ -5,12 +5,13 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from utils.collector import get_humidity_temperature, read_gps_position
-from storage.sendOracle import upload_to_bucket
 from utils.generator import activate_generator, activate_generator_collected
-#from utils.sparkUtils import create_spark_session
 from utils.writeUtils import write_json
-from datetime import datetime
+from utils.dataUtils import get_formatted_moods
 from utils.loggerUtils import logger, timestamp_str
+#from utils.sparkUtils import create_spark_session
+from datetime import datetime
+from storage.sendOracle import upload_to_bucket
 from my_secrets.secrets import generated_collected_data_dir
 
 
@@ -38,6 +39,16 @@ if __name__ == "__main__":
                       action="store_true",
                       default=False,
                       help="Launch Spark session (default: False)")
+    parser.add_option("-m", "--moods",
+                      dest="moods",
+                      action="append",
+                      default=[],
+                      help="List of moods to filter (can be used multiple times)")
+    parser.add_option("-c", "--collected",
+                      dest="collected",
+                      action="store_true",
+                      default=False,
+                      help="Collect data only (default: False)")
     parser.add_option("-b", "--bucket",
                       dest="bucket",
                       default=False,
@@ -98,16 +109,21 @@ if __name__ == "__main__":
             except Exception as e:
                 logger.error(f"Erreur data generator : {e}")
 
-        else:
+        elif options.collected:
             logger.info("----- Mode collecte de données -----")
+            moods = options.moods if options.moods else ["default"]
+            mood_dict = get_formatted_moods(moods)
+            
             temperature, pressure = get_humidity_temperature()
             latitude, longitude, altitude = read_gps_position()
+            
             row = {
                 "temperature": temperature,
                 "pressure": pressure,
                 "latitude": latitude,
                 "longitude": longitude,
-                "altitude_m": altitude
+                "altitude_m": altitude,
+                "moods": mood_dict
             }
             json_object.append(row)
             logger.info(f"Données collectées : {row}")
@@ -125,9 +141,7 @@ if __name__ == "__main__":
             #spark.stop()
             #logger.info("Session Spark fermée")
             
-        logger.info(f"Taille des arguments passés au script : {len(sys.argv)}")
-
-        if json_object and len(sys.argv) == 1:
+        if json_object and options.collected and options.moods:
             logger.info("----- Écriture des données collectées au format JSON -----")
             write_json(json_object, timestamp_str, options, None)
         if json_object and not options.generator_computed and options.generator_collected:

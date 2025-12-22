@@ -2,6 +2,7 @@ from astral import LocationInfo
 from astral.sun import sun
 from datetime import datetime, timezone
 import pytz
+from utils.loggerUtils import logger
 
 
 
@@ -67,3 +68,13 @@ def  get_formatted_ddmmyyyy(timestamp):
     Retourne la date formattée en dd-mm-yyyy
     """
     return timestamp[:10]
+
+def get_formatted_moods(moods):
+    if len(moods) == 1 and ',' in moods[0]:
+        moods = moods[0].split(',')
+    mood_dict = {}
+    for index, mood in enumerate(moods):
+        mood_dict[f"mood_{index}"] = mood
+    logger.info(f"Moods collectés : {mood_dict}")
+        
+    return mood_dict

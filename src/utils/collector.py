@@ -7,14 +7,18 @@ from adafruit_bmp280 import Adafruit_BMP280_I2C
 from .loggerUtils import logger, log_file
 
 def get_humidity_temperature():
-    i2c = busio.I2C(board.SCL, board.SDA)
-    bmp280 = Adafruit_BMP280_I2C(i2c, address=0x76)
+    try:
+        i2c = busio.I2C(board.SCL, board.SDA)
+        bmp280 = Adafruit_BMP280_I2C(i2c, address=0x76)
 
-    temperature = bmp280.temperature      # °C
-    pressure = bmp280.pressure            # hPa
+        temperature = bmp280.temperature      # °C
+        pressure = bmp280.pressure            # hPa
 
-    logger.info(f"Temperature: {temperature:.2f} °C, Pressure: {pressure:.2f} hPa")
-    return temperature, pressure
+        logger.info(f"Temperature: {temperature:.2f} °C, Pressure: {pressure:.2f} hPa")
+        return temperature, pressure
+    except Exception as e:
+        logger.error(f"Erreur lors de la lecture du capteur BMP280 : {e}")
+        return None, None
 
 
 def nmea_to_decimal(coord, direction):
@@ -39,15 +43,15 @@ def read_gps_position(timeout=30):
     Lit l'UART et retourne (latitude, longitude, altitude)
     ou (None, None, None) si pas de fix dans le timeout.
     """
-    ser = serial.Serial(
-        port="/dev/serial0",
-        baudrate=9600,
-        timeout=1
-    )
-
     start = time.time()
 
     try:
+        ser = serial.Serial(
+        port="/dev/serial0",
+        baudrate=9600,
+        timeout=1
+        )
+        
         while time.time() - start < timeout:
             line = ser.readline().decode(errors="ignore").strip()
 
@@ -67,6 +71,8 @@ def read_gps_position(timeout=30):
             logger.info(f"Position GPS : Latitude={lat}, Longitude={lon}, Altitude={alt} m")
 
             return lat, lon, alt
+    except Exception as e:
+        logger.error(f"Erreur lors de la lecture du GPS : {e}")
 
     finally:
         ser.close()
