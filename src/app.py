@@ -103,8 +103,8 @@ if __name__ == "__main__":
             temperature, pressure = get_humidity_temperature()
             latitude, longitude, altitude = read_gps_position()
             row = {
-                "temperature_C": temperature,
-                "pressure_hPa": pressure,
+                "temperature": temperature,
+                "pressure": pressure,
                 "latitude": latitude,
                 "longitude": longitude,
                 "altitude_m": altitude

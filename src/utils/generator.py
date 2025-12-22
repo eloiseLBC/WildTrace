@@ -38,9 +38,9 @@ def generate_humidity():
     humidity = random.randint(0, 100)
     return humidity
 
-def generate_pression(altitude):
-    pression = 1013.25 * (1 - (float(altitude) / float(44330))) ** 5.255
-    return pression
+def generate_pressure(altitude):
+    pressure = 1013.25 * (1 - (float(altitude) / float(44330))) ** 5.255
+    return pressure
 
 def get_luminosity(hour, is_night, environment):
     """
@@ -132,7 +132,7 @@ def generate_computed(collected_files_data):
         environment = ""
         temperature = 0.0
         humidity = 0.0
-        pression = 0.0
+        pressure = 0.0
         luminosity = 0.0
         concentration_co2 = 0.0
         lat = 0.0
@@ -155,8 +155,8 @@ def generate_computed(collected_files_data):
                             temperature = v
                         case "humidity":
                             humidity = v
-                        case "pression":
-                            pression = v
+                        case "pressure":
+                            pressure = v
                         case "luminosity":
                             luminosity = v
                         case "concentration_co2":
@@ -180,7 +180,7 @@ def generate_computed(collected_files_data):
                     "longitude": lng,
                     "temperature": temperature,
                     "humidity": humidity,
-                    "pression": pression,
+                    "pressure": pressure,
                     "luminosity": luminosity,
                     "concentration_co2": concentration_co2,
                     "environment": environment,
@@ -223,7 +223,7 @@ def generate_one_collected_row():
 
         temperature = generate_temperature()
         humidity = generate_humidity()
-        pression = generate_pression(altitude)
+        pressure = generate_pressure(altitude)
         luminosity = get_luminosity(hour, is_night(lat, lng, timestamp_utc), environment)
         concentration_co2 = generate_co2(environment)
 
@@ -234,7 +234,7 @@ def generate_one_collected_row():
             "longitude": lng,
             "temperature": temperature,
             "humidity": humidity,
-            "pression": pression,
+            "pressure": pressure,
             "luminosity": luminosity,
             "concentration_co2": concentration_co2,
             "environment": environment,
