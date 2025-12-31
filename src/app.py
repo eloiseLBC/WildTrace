@@ -9,11 +9,9 @@ from utils.generator import activate_generator, activate_generator_collected
 from utils.writeUtils import write_json
 from utils.dataUtils import get_formatted_moods
 from utils.loggerUtils import logger, timestamp_str
-#from utils.sparkUtils import create_spark_session
 from datetime import datetime
 from storage.sendOracle import upload_to_bucket
 from my_secrets.secrets import generated_collected_data_dir
-
 
 
 df = pd.DataFrame()
@@ -34,11 +32,6 @@ if __name__ == "__main__":
                       dest="generator_collected",
                       default=False,
                       help="Generate data as collected data only.\n On other hand, -g option allows to generate complete test data, after collecting and computing.\n (default: False)")
-    parser.add_option("-s", "--spark",
-                      dest="spark",
-                      action="store_true",
-                      default=False,
-                      help="Launch Spark session (default: False)")
     parser.add_option("-m", "--moods",
                       dest="moods",
                       action="append",
@@ -73,28 +66,11 @@ if __name__ == "__main__":
                             path = os.path.join(collected_dir, file)
                             logger.info(f"JSON object passé au generator: {json_object}")
                             json_object = activate_generator(json_object, file)
-                            if options.spark:
-                                ## Créer la session Spark avec la configuration appropriée
-                                #spark = create_spark_session()
-
-                                # Test simple avec Spark pour vérifier que ça fonctionne
-                                #if json_object and spark is not None:
-                                #    logger.info("----- Test Spark DataFrame -----")
-                                #    try:
-                                #        spark_df = spark.createDataFrame(json_object)
-                                #        logger.info(f"DataFrame Spark créé avec {spark_df.count()} lignes")
-                                #        spark_df.printSchema()
-                                #        spark_df.show(truncate=False)
-                                #    except Exception as e:
-                                #        logger.error(f"Erreur avec Spark DataFrame : {e}")
-                                logger.warn("Pas de lancement avec spark pour le moment. Installation non surportée par le RaspberryPi, et non nécessaire actuellement.")
-                            else:
-                                logger.info("----- Utilisation de Pandas (Spark non disponible) -----")
-                                df = pd.DataFrame(json_object)
-                                logger.info(f"DataFrame Pandas créé avec {len(df)} lignes")
-                                print(df.head())
-                                logger.info("----- Écriture des données générées au format JSON -----")
-                                write_json(json_object, timestamp_str, options, file)
+                            df = pd.DataFrame(json_object)
+                            logger.info(f"DataFrame Pandas créé avec {len(df)} lignes")
+                            print(df.head())
+                            logger.info("----- Écriture des données générées au format JSON -----")
+                            write_json(json_object, timestamp_str, options, file)
 
             except Exception as e:
                 logger.error(f"Erreur data generator : {e}")
@@ -135,11 +111,6 @@ if __name__ == "__main__":
     finally:
         duree = datetime.now() - timestamp_begin_job
         logger.info(f"Durée du programme : {duree}")
-
-        # Fermer la session Spark
-        # if 'spark' in locals() and spark is not None:
-            #spark.stop()
-            #logger.info("Session Spark fermée")
             
         if json_object and options.collected and options.moods:
             logger.info("----- Écriture des données collectées au format JSON -----")
@@ -156,4 +127,3 @@ if __name__ == "__main__":
         elif options.bucket and not (options.generator_computed or options.generator_collected):
             logger.info("Upload vers le bucket Oracle Cloud non activé.")
             logger.info("Pour activer, utiliser l'option -b ou --bucket, ainsi qu'une des options du generator.")
-
