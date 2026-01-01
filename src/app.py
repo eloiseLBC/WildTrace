@@ -4,7 +4,7 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from utils.collector import get_humidity_temperature, read_gps_position
+from utils.collector import get_humidity_temperature, read_gps_position, get_rtc_datetime
 from utils.generator import activate_generator, activate_generator_collected
 from utils.writeUtils import write_json
 from utils.dataUtils import get_formatted_moods
@@ -46,6 +46,10 @@ if __name__ == "__main__":
                       dest="bucket",
                       default=False,
                       help="Upload generated files to Oracle Cloud bucket (default: False)")
+    parser.add_option("-z", "--zone-time",
+                      dest="zone_time",
+                      default="France",
+                      help="Zone time for RTC datetime (default: France)")
 
 
     (options, args) = parser.parse_args()
@@ -87,6 +91,7 @@ if __name__ == "__main__":
 
         elif options.collected:
             logger.info("----- Mode collecte de données -----")
+            local_timestamp = get_rtc_datetime()
             moods = options.moods if options.moods else ["default"]
             mood_dict = get_formatted_moods(moods)
             
@@ -94,6 +99,7 @@ if __name__ == "__main__":
             latitude, longitude, altitude = read_gps_position()
             
             row = {
+                "local_timestamp": local_timestamp,
                 "temperature": temperature,
                 "pressure": pressure,
                 "latitude": latitude,

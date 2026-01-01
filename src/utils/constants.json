@@ -9,5 +9,31 @@
     "Village",
     "Indoors",
     "Cloudy"
-  ]
+  ],
+  "timezones": {
+    "france": {
+      "name": "France",
+      "timezone": "Europe/Paris"
+    },
+    "vietnam-laos-thailand": {
+      "name": "Vietnam, Laos, Thailand",
+      "timezone": "Asia/Bangkok"
+    },
+    "philippines": {
+      "name": "Philippines",
+      "timezone": "Asia/Manila"
+    },
+    "eastern-australia": {
+      "name": "Eastern Australia",
+      "timezone": "Australia/Sydney"
+    },
+    "central-australia": {
+      "name": "Central Australia",
+      "timezone": "Australia/Adelaide"
+    },
+    "western-australia": {
+      "name": "Western Australia",
+      "timezone": "Australia/Perth" 
+    }  
+  }
 }
