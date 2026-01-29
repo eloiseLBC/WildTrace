@@ -1,32 +1,130 @@
+import time
 import board
 import busio
+import adafruit_ds3231
+import adafruit_scd30
+import adafruit_veml7700
 import serial
-import time
-import smbus2
-
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from adafruit_bmp280 import Adafruit_BMP280_I2C
-from .loggerUtils import logger, log_file
-from datetime import datetime, timezone
+from .loggerUtils import logger
 
-I2C_BUS = 1
 RTC_ADDR = 0x68
+I2C_BUS = 1
 
-def get_humidity_temperature():
+# Globals (créés à la demande)
+_I2C = None
+_VEML = None
+_SCD = None
+_BMP = None
+_RTC = None
+
+def _get_i2c():
+    global _I2C
+    if _I2C is None:
+        _I2C = busio.I2C(board.SCL, board.SDA)
+    return _I2C
+
+def _retry(fn, tries=5, delay=0.2, name="I2C op"):
+    last = None
+    for i in range(tries):
+        try:
+            return fn()
+        except OSError as e:
+            last = e
+            logger.warning(f"{name} failed ({i+1}/{tries}): {e}")
+            time.sleep(delay)
+    raise last
+
+def _get_veml():
+    global _VEML
+    if _VEML is None:
+        i2c = _get_i2c()
+        _VEML = _retry(lambda: adafruit_veml7700.VEML7700(i2c), name="VEML init")
+        # Config stable
+        _VEML.integration_time = 100
+        _VEML.gain = 1
+        time.sleep(0.2)
+    return _VEML
+
+def _get_scd():
+    global _SCD
+    if _SCD is None:
+        i2c = _get_i2c()
+        _SCD = _retry(lambda: adafruit_scd30.SCD30(i2c), name="SCD30 init")
+        # IMPORTANT: la config I²C du SCD30 peut échouer -> retry aussi
+        _retry(lambda: setattr(_SCD, "measurement_interval", 2), name="SCD30 set interval")
+        _retry(lambda: setattr(_SCD, "self_calibration_enabled", False), name="SCD30 disable ASC")
+        time.sleep(0.2)
+    return _SCD
+
+def _get_bmp():
+    global _BMP
+    if _BMP is None:
+        i2c = _get_i2c()
+        # adapte 0x76/0x77 selon ton câblage BMP280
+        _BMP = _retry(lambda: Adafruit_BMP280_I2C(i2c, address=0x76), name="BMP280 init")
+        time.sleep(0.1)
+    return _BMP
+
+def _get_rtc():
+    global _RTC
+    if _RTC is None:
+        i2c = _get_i2c()
+        _RTC = adafruit_ds3231.DS3231(i2c)
+    return _RTC
+
+def _bcd_to_int(bcd: int) -> int:
+    return ((bcd >> 4) * 10) + (bcd & 0x0F)
+
+def get_pressure_temperature():
     try:
-        i2c = busio.I2C(board.SCL, board.SDA)
-        bmp280 = Adafruit_BMP280_I2C(i2c, address=0x76)
-
-        temperature = bmp280.temperature      # °C
-        pressure = bmp280.pressure            # hPa
-
+        bmp = _get_bmp()
+        temperature = bmp.temperature
+        pressure = bmp.pressure
         logger.info(f"Temperature: {temperature:.2f} °C, Pressure: {pressure:.2f} hPa")
         return temperature, pressure
     except Exception as e:
-        logger.error(f"Erreur lors de la lecture du capteur BMP280 : {e}")
+        logger.error(f"BMP280 Error : {e}")
         return None, None
 
 
+def read_luminosity():
+    try:
+        veml = _get_veml()
+        time.sleep(0.2)
+        lux = veml.lux
+        white = veml.white
+        logger.info(f"Luminosity: {lux:.2f} lux, White: {white}")
+        return lux, white
+    except Exception as e:
+        logger.error(f"VEML7700 Error : {e}")
+        return None, None
+
+
+def get_scd30_data():
+    try:
+        scd = _get_scd()
+
+        t0 = time.time()
+        while not scd.data_available:
+            if time.time() - t0 > 5:
+                raise TimeoutError("SCD30: no data available (timeout)")
+            time.sleep(0.2)
+
+        co2 = scd.CO2
+        temp = scd.temperature
+        rh = scd.relative_humidity
+
+        logger.info(f"CO2: {co2:.0f}ppm, Temperature: {temp:.2f}°C, Relative Humidity: {rh:.2f}%")
+        return co2, temp, rh
+
+    except Exception as e:
+        logger.error(f"SCD30 Error : {e}")
+        return None, None, None
+
+    
 def nmea_to_decimal(coord, direction):
     """
     Convertit un format NMEA (ddmm.mmmm) en degrés décimaux
@@ -74,58 +172,31 @@ def read_gps_position(timeout=30):
             lon = nmea_to_decimal(parts[4], parts[5])
             alt = float(parts[9]) if parts[9] else None
             
-            logger.info(f"Position GPS : Latitude={lat}, Longitude={lon}, Altitude={alt} m")
+            logger.info(f"GPS position : Latitude={lat}, Longitude={lon}, Altitude={alt} m")
 
             return lat, lon, alt
         if start + timeout <= time.time():
-            logger.error("Timeout atteint sans obtenir de fix GPS.")
+            logger.error("Timeout reached without obtaining GPS fix.")
     except Exception as e:
-        logger.error(f"Erreur lors de la lecture du GPS : {e}")
+        logger.error(f"Error during GPS reading : {e}")
 
     finally:
         ser.close()
 
     return None, None, None
 
-
-
-
-def _bcd_to_int(bcd: int) -> int:
-    return ((bcd >> 4) * 10) + (bcd & 0x0F)
-
-def read_rtc_datetime(addr: int = RTC_ADDR, bus_id: int = I2C_BUS) -> datetime:
+def read_rtc_datetime() -> datetime:
     """
-    Read current date/time from a DS3231/DS1307 RTC at I2C address 0x68.
-    Returns a timezone-aware datetime in UTC by default (you can convert to local later).
+    Retourne un datetime timezone-aware en UTC (comme avant).
     """
-    bus = smbus2.SMBus(bus_id)
+    rtc = _get_rtc()
+    t = rtc.datetime  # time.struct_time
 
-    # DS3231/DS1307 time registers start at 0x00 and are 7 bytes:
-    # 0: seconds, 1: minutes, 2: hours, 3: day-of-week, 4: day, 5: month(+century bit), 6: year (0-99)
-    data = bus.read_i2c_block_data(addr, 0x00, 7)
-
-    seconds = _bcd_to_int(data[0] & 0x7F)
-    minutes = _bcd_to_int(data[1] & 0x7F)
-
-    # Hours can be in 24h or 12h format. We handle both.
-    hr = data[2]
-    if hr & 0x40:  # 12-hour mode
-        hours = _bcd_to_int(hr & 0x1F)
-        pm = bool(hr & 0x20)
-        if pm and hours != 12:
-            hours += 12
-        if not pm and hours == 12:
-            hours = 0
-    else:  # 24-hour mode
-        hours = _bcd_to_int(hr & 0x3F)
-
-    day = _bcd_to_int(data[4] & 0x3F)
-    month_raw = data[5]
-    month = _bcd_to_int(month_raw & 0x1F)
-    year = _bcd_to_int(data[6]) + 2000  # common assumption (works for DS3231 modules)
-
-    # Return in UTC (you can change to local timezone if you want)
-    return datetime(year, month, day, hours, minutes, seconds, tzinfo=timezone.utc)
+    return datetime(
+        t.tm_year, t.tm_mon, t.tm_mday,
+        t.tm_hour, t.tm_min, t.tm_sec,
+        tzinfo=timezone.utc
+    )
 
 def get_rtc_datetime():
     """
