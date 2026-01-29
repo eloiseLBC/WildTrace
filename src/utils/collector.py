@@ -198,11 +198,12 @@ def read_rtc_datetime() -> datetime:
         tzinfo=timezone.utc
     )
 
-def get_rtc_datetime():
+def get_rtc_datetime(timezone):
     """
     Get RTC datetime as a formatted string in local timezone (Asia/Bangkok).
     """
+    logger.info(f"Getting RTC datetime for timezone: {timezone}")
     dt = read_rtc_datetime()
-    dt_local = dt.astimezone(ZoneInfo("Asia/Bangkok")).strftime("%Y-%m-%d %H:%M:%S")
-    logger.info(f"Local timestamp : {dt_local}")
+    dt_local = dt.astimezone(ZoneInfo(timezone)).strftime("%Y-%m-%d %H:%M:%S")
+    logger.info(f"Local timestamp for timezone '{timezone}': {dt_local}")
     return dt_local

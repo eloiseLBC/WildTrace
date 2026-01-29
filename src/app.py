@@ -91,12 +91,11 @@ if __name__ == "__main__":
                 
         elif options.collected:
             logger.info("----- Data collect mode -----")
-            local_timestamp = get_rtc_datetime()
+            zone_time = options.zone_time if options.zone_time else "France"
+            local_timestamp = get_rtc_datetime(zone_time)
             moods = options.moods if options.moods else ["default"]
             mood_dict = get_formatted_moods(moods)
-            zone_time = options.zone_time if options.zone_time else "France"
-            logger.info(f"Zone time selected: {zone_time}")
-            
+                        
             temperature_bmp280, pressure = get_pressure_temperature()
             co2, temperature_scd30, humidity = get_scd30_data()
             latitude, longitude, altitude = read_gps_position()
