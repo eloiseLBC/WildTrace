@@ -94,6 +94,8 @@ if __name__ == "__main__":
             local_timestamp = get_rtc_datetime()
             moods = options.moods if options.moods else ["default"]
             mood_dict = get_formatted_moods(moods)
+            zone_time = options.zone_time if options.zone_time else "France"
+            logger.info(f"Zone time selected: {zone_time}")
             
             temperature_bmp280, pressure = get_pressure_temperature()
             co2, temperature_scd30, humidity = get_scd30_data()
@@ -114,7 +116,7 @@ if __name__ == "__main__":
             }
             json_object.append(row)
             logger.info(f"Collected data : {row}")
-            logger.info("----- Fin du mode collecte de données -----")
+            logger.info("----- End of data collection mode -----")
             exit(0)
 
     except Exception as e:

@@ -28,7 +28,7 @@ def write_json(row, timestamp, options, filename):
         # Permet de synchroniser le système et que s'il y a lecture le fichier soit bien trouvé
         f.flush()
         os.fsync(f.fileno())
-        logger.info(f"Fichier enregistré sous le nom : {filename}")
+        logger.info(f"File saved under name: {filename}")
         # upload_file_to_drive(path, filename, drive_folder_collected_data_id)
 
 
