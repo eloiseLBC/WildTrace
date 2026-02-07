@@ -122,6 +122,13 @@ if __name__ == "__main__":
             logger.info(f"Collected data : {row}")
             logger.info("----- End of data collection mode -----")
             exit(0)
+            
+        elif options.computed:
+            logger.info("----- Data computing and sending mode -----")
+            # Get files in bucket
+            # Log number files in bucket and in local for "collected, log the name on missing files"
+            # Compute for each files the missing data
+            # Write files in local at data/output/computed
 
     except Exception as e:
         logger.error(f"General error : {e}")
