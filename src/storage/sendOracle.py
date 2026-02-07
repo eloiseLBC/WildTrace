@@ -35,6 +35,8 @@ def upload_to_bucket(folder_path, bucket_name, options):
         bucket_path = "generated/collected"
     elif options.generator_computed:
         bucket_path = "generated/computed"
+    else:
+        bucket_path = "collected/to_compute"
 
     if not folder.exists() or not folder.is_dir():
         logger.info(f"No such directory: `{folder_path}`")
