@@ -23,20 +23,6 @@ if __name__ == "__main__":
     parser = optparse.OptionParser()
 
     # add options
-    parser.add_option("-g", "--generator-computed",
-                      dest="generator_computed",
-                      action="store_true",
-                      default=False,
-                      help="Activate the data generator mode (default: False)")
-    parser.add_option("--generator-collected",
-                      dest="generator_collected",
-                      default=False,
-                      help="Generate data as collected data only.\n On other hand, -g option allows to generate complete test data, after collecting and computing.\n (default: False)")
-    parser.add_option("-m", "--moods",
-                      dest="moods",
-                      action="append",
-                      default=[],
-                      help="List of moods to filter (can be used multiple times)")
     parser.add_option("-c", "--collected",
                       dest="collected",
                       action="store_true",
@@ -50,6 +36,25 @@ if __name__ == "__main__":
                       dest="zone_time",
                       default="France",
                       help="Zone time for RTC datetime (default: France)")
+    parser.add_option("-m", "--moods",
+                      dest="moods",
+                      action="append",
+                      default=[],
+                      help="List of moods to filter (can be used multiple times)")
+    parser.add_option("--computed",
+                      dest="computed",
+                      action="store_true",
+                      default=False,
+                      help="Generate completed data files and send it to bucket")
+    parser.add_option("-g", "--generator-computed",
+                      dest="generator_computed",
+                      action="store_true",
+                      default=False,
+                      help="Activate the data generator mode (default: False)")
+    parser.add_option("--generator-collected",
+                      dest="generator_collected",
+                      default=False,
+                      help="Generate data as collected data only.\n On other hand, -g option allows to generate complete test data, after collecting and computing.\n (default: False)")    
 
 
     (options, args) = parser.parse_args()
