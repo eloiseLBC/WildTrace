@@ -35,6 +35,9 @@ def upload_to_bucket(folder_path, bucket_name, options):
         bucket_path = "generated/collected"
     elif options.generator_computed:
         bucket_path = "generated/computed"
+    else:
+        bucket_path = "collected/to_compute"
+        logger.info(f"Bucket path : {bucket_path}")
 
     if not folder.exists() or not folder.is_dir():
         logger.info(f"No such directory: `{folder_path}`")
@@ -44,6 +47,8 @@ def upload_to_bucket(folder_path, bucket_name, options):
     if not files:
         logger.info(f"No files to upload in folder: `{folder_path}`")
         return
+    
+    logger.info(f"Files to upload : {len(files)}")
 
     for file in files:
         logger.info(f"Uploading file: {file.name}")
@@ -52,6 +57,7 @@ def upload_to_bucket(folder_path, bucket_name, options):
             logger.info(f"→ {file.name} uploaded.")
         # Move file to 'uploaded' subfolder
         uploaded_folder = folder / "uploaded"
+        uploaded_folder = Path(f"{str(folder).split("to_send")[0]}uploaded")        
         uploaded_folder.mkdir(exist_ok=True)
         file.rename(uploaded_folder / file.name)
 

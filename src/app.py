@@ -11,7 +11,7 @@ from utils.dataUtils import get_formatted_moods
 from utils.loggerUtils import logger, timestamp_str
 from datetime import datetime
 from storage.sendOracle import upload_to_bucket
-from my_secrets.secrets import generated_collected_data_dir
+from my_secrets.secrets import generated_collected_data_dir, collected_data_dir
 
 
 df = pd.DataFrame()
@@ -131,11 +131,13 @@ if __name__ == "__main__":
             logger.info("----- Writing generated data in JSON format -----")
             write_json(json_object, timestamp_str, options, None)
         if options.bucket and options.generator_computed:
-            logger.info("----- Uploading generated files (option -g) to Oracle Cloud bucket -----")
+            logger.info("----- Uploading generated computing files to Oracle Cloud bucket -----")
             upload_to_bucket("data/output/generated/environmental_to_send/computed/", "wildtrace-environmental", options)
         if options.bucket and options.generator_collected:
-            logger.info("----- Uploading generated files (option -gc) to Oracle Cloud bucket -----")
+            logger.info("----- Uploading generated collecting files to Oracle Cloud bucket -----")
             upload_to_bucket(f"{generated_collected_data_dir}/", "wildtrace-environmental", options)
         elif options.bucket and not (options.generator_computed or options.generator_collected):
-            logger.info("Upload into Oracle Cloud bucket not activated.")
-            logger.info("To activate, use the -b or --bucket option, along with one of the generator options.")
+            logger.info("----- Uploading collected files to Oracle Cloud bucket")
+            upload_to_bucket(f"{collected_data_dir}/", "wildtrace-environmental", options)
+        logger.info(f"----- End of program -----")
+        logger.info(f"Duration : {datetime.now() - timestamp_begin_job}")
