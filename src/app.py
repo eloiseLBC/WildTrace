@@ -131,7 +131,7 @@ if __name__ == "__main__":
             
         elif options.computed:
             logger.info("----- Data computing and sending mode -----")
-            computing_collected()
+            computing_collected(options)
             # Get files in bucket
             # Log number files in bucket and in local for "collected, log the name for missing files"
             # Compute for each files the missing data

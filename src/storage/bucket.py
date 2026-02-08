@@ -5,9 +5,10 @@ import os
 import json
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from utils.loggerUtils import logger, log_file
+from utils.loggerUtils import logger, log_file, timestamp_str
 from utils.computingUtils import compute_data
-from my_secrets.secrets import config_oci_path, computed_data_dir_to_send, collected_uploaded_data_dir, tmp_to_compute_dir
+from utils.writeUtils import write_json
+from my_secrets.secrets import config_oci_path, computed_data_dir_to_send, collected_uploaded_data_dir, tmp_to_compute_dir, computed_data_dir_uploaded
 
 bucket_name = "wildtrace-environmental"
 
@@ -58,8 +59,31 @@ def upload_to_bucket(folder_path, options):
         uploaded_folder.mkdir(exist_ok=True)
         file.rename(uploaded_folder / file.name)
         
+        
+def upload_to_bucket_single_file(object_storage, namespace, file_path, options):
+    logger.info(f"Upload du fichier {file_path} vers le bucket Oracle Cloud...")
+    file = Path(file_path)
+    bucket_path = ""
+    if options.computed:
+        bucket_path = "collected/computed"
+        
+    if not file.exists():
+        logger.error(f"No such file : {file.name}")
+        return
+    
+    with file.open("rb") as f:
+        object_storage.put_object(namespace, bucket_name, f"{bucket_path}/{file.name}", f)
+        logger.info(f"→ {file.name} uploaded.")
+        # Move file to 'uploaded' subfolder
+        uploaded_folder = Path(computed_data_dir_uploaded)
+        uploaded_folder.mkdir(exist_ok=True)
+        file.rename(uploaded_folder / file.name)
+    
+    
+    
+        
 
-def computing_collected():
+def computing_collected(options):
     object_storage, namespace = connect_to_bucket()
 
     bucket_path = "collected/to_compute"
@@ -96,6 +120,7 @@ def computing_collected():
 
         if file_name in files_computed_environmental_to_send:
             logger.warning(f"SKIP: {file_name} already exists in local computed/environmental_to_send")
+            upload_to_bucket_single_file(object_storage, namespace, f"{computed_data_dir_to_send}/{file_name}", options)
             continue
 
         # Choix input local
@@ -124,6 +149,13 @@ def computing_collected():
                 computed_json = compute_data(data)
                 if computed_json == "":
                     logger.info(f"-- Fichier sans timestamp : {file_name}")
+                else:
+                    # Ecrire dans /data/output/computed/environmental_to_send
+                    write_json(computed_json, timestamp_str, options, file_name)
+                    upload_to_bucket_single_file(object_storage, namespace, computed_data_dir_to_send, options)
+                    
+                    # Déplacer le fichier local dans /data/output/computed/environmental_uploaded
+                    # SUpprimer de /data/output/computed/environmental_to_send
 
         except json.JSONDecodeError as e:
             logger.error(f"INVALID JSON {file_name}: {e}")
