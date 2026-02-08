@@ -14,11 +14,6 @@ from .geoUtils import (get_altitude, get_city_country, get_hemisphere, get_dista
 from .loggerUtils import logger, log_file
 from my_secrets.secrets import generated_collected_data_dir
 
-"""
-TODO: Générer des fausses données pour ces clés
-latitude	Numérique 
-longitude	Numérique 
-"""
 
 def generate_timestamp():
     start = datetime(2027, 1, 1)

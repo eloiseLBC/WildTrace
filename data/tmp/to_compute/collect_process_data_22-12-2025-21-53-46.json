@@ -1,0 +1,12 @@
+[
+  {
+    "temperature": null,
+    "pressure": null,
+    "latitude": null,
+    "longitude": null,
+    "altitude_m": null,
+    "moods": {
+      "mood_0": ""
+    }
+  }
+]

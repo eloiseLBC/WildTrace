@@ -1,0 +1,17 @@
+[
+  {
+    "local_timestamp": "2000-01-01 01:03:19",
+    "temperature_bmp280": null,
+    "temperature_scd30": 22.877090454101562,
+    "luminosity": 114.5088,
+    "white_luminosity": 289,
+    "pressure": null,
+    "latitude": null,
+    "longitude": null,
+    "altitude_m": null,
+    "moods": {
+      "mood_0": "calm",
+      "mood_1": "tired"
+    }
+  }
+]

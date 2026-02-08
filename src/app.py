@@ -7,11 +7,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utils.collector import get_pressure_temperature, read_gps_position, get_rtc_datetime, read_luminosity, get_scd30_data
 from utils.generator import activate_generator, activate_generator_collected
 from utils.writeUtils import write_json
-from utils.dataUtils import get_formatted_moods
+from utils.dataUtils import get_formatted_moods, get_formatted_environments
 from utils.loggerUtils import logger, timestamp_str
 from datetime import datetime
-from storage.sendOracle import upload_to_bucket
-from my_secrets.secrets import generated_collected_data_dir, collected_data_dir
+from storage.bucket import upload_to_bucket, computing_collected
+from my_secrets.secrets import generated_collected_data_dir
 
 
 df = pd.DataFrame()
@@ -23,20 +23,6 @@ if __name__ == "__main__":
     parser = optparse.OptionParser()
 
     # add options
-    parser.add_option("-g", "--generator-computed",
-                      dest="generator_computed",
-                      action="store_true",
-                      default=False,
-                      help="Activate the data generator mode (default: False)")
-    parser.add_option("--generator-collected",
-                      dest="generator_collected",
-                      default=False,
-                      help="Generate data as collected data only.\n On other hand, -g option allows to generate complete test data, after collecting and computing.\n (default: False)")
-    parser.add_option("-m", "--moods",
-                      dest="moods",
-                      action="append",
-                      default=[],
-                      help="List of moods to filter (can be used multiple times)")
     parser.add_option("-c", "--collected",
                       dest="collected",
                       action="store_true",
@@ -50,6 +36,30 @@ if __name__ == "__main__":
                       dest="zone_time",
                       default="France",
                       help="Zone time for RTC datetime (default: France)")
+    parser.add_option("-m", "--moods",
+                      dest="moods",
+                      action="append",
+                      default=[],
+                      help="List of moods to filter (can be used multiple times)")
+    parser.add_option("-e", "--environments",
+                      dest="environments",
+                      action="append",
+                      default=[],
+                      help="List of environments to filter (can be used multiple times)")
+    parser.add_option("--computed",
+                      dest="computed",
+                      action="store_true",
+                      default=False,
+                      help="Generate completed data files and send it to bucket")
+    parser.add_option("-g", "--generator-computed",
+                      dest="generator_computed",
+                      action="store_true",
+                      default=False,
+                      help="Activate the data generator mode (default: False)")
+    parser.add_option("--generator-collected",
+                      dest="generator_collected",
+                      default=False,
+                      help="Generate data as collected data only.\n On other hand, -g option allows to generate complete test data, after collecting and computing.\n (default: False)")    
 
 
     (options, args) = parser.parse_args()
@@ -95,28 +105,38 @@ if __name__ == "__main__":
             local_timestamp = get_rtc_datetime(zone_time)
             moods = options.moods if options.moods else ["default"]
             mood_dict = get_formatted_moods(moods)
+            enviroments = options.environments if options.environments else ["default"]
+            environment_dict = get_formatted_environments(enviroments)
                         
-            temperature_bmp280, pressure = get_pressure_temperature()
-            co2, temperature_scd30, humidity = get_scd30_data()
+            co2, temperature, humidity = get_scd30_data()
             latitude, longitude, altitude = read_gps_position()
             luminosity, white_luminosity = read_luminosity()
             
             row = {
                 "local_timestamp": local_timestamp,
-                "temperature_bmp280": temperature_bmp280,
-                "temperature_scd30": temperature_scd30,
+                "temperature": temperature,
                 "luminosity": luminosity,
                 "white_luminosity": white_luminosity,
-                "pressure": pressure,
                 "latitude": latitude,
                 "longitude": longitude,
                 "altitude_m": altitude,
+                "concentration_co2": co2,
+                "environments": environment_dict,
                 "moods": mood_dict
             }
             json_object.append(row)
             logger.info(f"Collected data : {row}")
             logger.info("----- End of data collection mode -----")
             exit(0)
+            
+        elif options.computed:
+            logger.info("----- Data computing and sending mode -----")
+            computing_collected(options)
+            # Get files in bucket
+            # Log number files in bucket and in local for "collected, log the name for missing files"
+            # Compute for each files the missing data
+            # Write files in local at data/output/computed
+            # For computing the pressure, It needs latitude, longitude, timestamp and timezone (do it at the end)
 
     except Exception as e:
         logger.error(f"General error : {e}")
