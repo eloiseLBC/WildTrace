@@ -2,10 +2,11 @@ from pathlib import Path
 import oci
 import sys
 import os
+import json
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from utils.loggerUtils import logger, log_file
-from my_secrets.secrets import config_oci_path
+from my_secrets.secrets import config_oci_path, computed_data_dir_to_send, collected_uploaded_data_dir, tmp_to_compute_dir
 
 bucket_name = "wildtrace-environmental"
 
@@ -58,23 +59,77 @@ def upload_to_bucket(folder_path, options):
 
 def computing_collected():
     object_storage, namespace = connect_to_bucket()
+
     bucket_path = "collected/to_compute"
-    object_list = object_storage.list_objects(namespace, bucket_name, fields="name,timeCreated,size")
-    
-    if len(object_list.data.objects) == 0:
+    object_list = object_storage.list_objects(
+        namespace,
+        bucket_name,
+        prefix=bucket_path + "/",  
+        fields="name,timeCreated,size"
+    )
+
+    local_to_compute_dir = Path(tmp_to_compute_dir)
+    local_to_compute_dir.mkdir(parents=True, exist_ok=True)
+
+    uploaded_dir = Path(collected_uploaded_data_dir)
+    uploaded_dir.mkdir(parents=True, exist_ok=True)
+
+    objects = object_list.data.objects or []
+    if len(objects) == 0:
         logger.info("No files to compute.")
         return
-    
-    for o in object_list.data.objects:
-        # Récupération du nom du fichier
-        file_name = str(o.name).rsplit('/', 1)[-1]
-        logger.info(f"Nom du fichier : {file_name}")
-        
-        # Vérifier que le fichier existe en local dans 'to_compute'
-        # Oui : On compute, on enregistre en local dans 'computed', on envoie dans le bucket, on supprime de 'to_compute' des deux environnements
-        # Non : On logge et on vérifie si le fichier existe déjà dans 'computed'
-            # Si oui, on logge et un vérifie si le fichier a bien toutes les key des sorties qu'on souhaite, 
-                #  si c'est bon on le logg et on vérifier qu'il n'existe pas dans le bucket dans 'computed', s'il n'existe pas on l'upload, s'il existe on logg et on le supprime de 'to_compute', puis prochain fichier
-            # Si non, on le download dans 'to_compute' et le compute puis le reste (upload bucket)
+
+    files_computed_environmental_to_send = {
+        f.name for f in Path(computed_data_dir_to_send).glob("*") if f.is_file()
+    }
+    logger.info(f"Already {len(files_computed_environmental_to_send)} files in local computed/environmental_to_send.")
+
+    files_collected_uploaded = {f.name for f in uploaded_dir.glob("*") if f.is_file()}
+
+    for o in objects:
+        obj_name = o.name  
+        file_name = obj_name.rsplit("/", 1)[-1]
+        if not file_name:
+            continue
+
+        if file_name in files_computed_environmental_to_send:
+            logger.warning(f"SKIP: {file_name} already exists in local computed/environmental_to_send")
+            continue
+
+        # Choix input local
+        if file_name in files_collected_uploaded:
+            logger.info(f"Using local uploaded file: {file_name}")
+            local_input_path = uploaded_dir / file_name
+        else:
+            logger.info(f"Downloading {file_name} from bucket...")
+            local_input_path = local_to_compute_dir / file_name
+
+            if not local_input_path.exists():
+                try:
+                    response = object_storage.get_object(namespace, bucket_name, obj_name)
+                    # download 
+                    import shutil
+                    with open(local_input_path, "wb") as f:
+                        shutil.copyfileobj(response.data.raw, f)
+                except Exception as e:
+                    logger.error(f"DOWNLOAD FAILED for {file_name}: {e}")
+                    continue
+
+        # Lecture JSON 
+        try:
+            with open(local_input_path, "r", encoding="utf-8-sig") as f:
+                data = json.load(f)
+                
+        except json.JSONDecodeError as e:
+            logger.error(f"INVALID JSON {file_name}: {e}")
+            continue
+
+        # Ici: enrichissement + write computed + upload + cleanup
+
+            
+        # Vérifier que le fichier n'existe pas dans computed/environmental_to_send 
+        # S'il n'existe pas : computer
+        # S'il existe : 
+            # Dans computed/environmental_to_send : Vérifier qu'il a bien toutes les valeurs que souhaite, si oui l'envoyer dans le bucket à la fin du programme, si non supprimer le fichier dans 'environmental_to_send', compute le fichier du bucket et ensuite placer dans environemtal_to_send
         
         
