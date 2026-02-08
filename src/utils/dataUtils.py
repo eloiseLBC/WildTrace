@@ -19,7 +19,7 @@ def is_night(lat: float, lng: float, timestamp: datetime) -> bool:
     return timestamp < s["sunrise"] or timestamp > s["sunset"]
 
 
-def get_season(hemisphere, date_now, format="%d-%m-%Y"):
+def get_season(hemisphere, date_now, format="%Y-%m-%d"):
     """
     Détermine la saison selon la date et l'hémisphère.
     """

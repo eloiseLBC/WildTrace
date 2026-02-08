@@ -27,18 +27,20 @@ def compute_data(data):
         
     try:
         for row in data:
+            logger.info(f"Data : {row}")
             for k, v in row.items(): 
                 match k:
                     case "timestamp":
                         timestamp_str = v
-                        timestamp_utc = datetime.strptime(timestamp_str, "%d-%m-%Y %H:%M:%S.%f").replace(tzinfo=timezone.utc)
+                        timestamp_utc = datetime.strptime(timestamp_str, "%d-%m-%Y %H:%M:%S").replace(tzinfo=timezone.utc)
                         timestamp_utc = timestamp_utc.strftime("%d-%m-%Y %H:%M:%S")
                         timestamp_utc = datetime.strptime(timestamp_utc, "%d-%m-%Y %H:%M:%S")
                     case "local_timestamp":
                         timestamp_str = v
-                        timestamp_utc = datetime.strptime(timestamp_str, "%d-%m-%Y %H:%M:%S.%f").replace(tzinfo=timezone.utc)
-                        timestamp_utc = timestamp_utc.strftime("%d-%m-%Y %H:%M:%S")
-                        timestamp_utc = datetime.strptime(timestamp_utc, "%d-%m-%Y %H:%M:%S")
+                        if timestamp_str != None:
+                            timestamp_utc = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+                            timestamp_utc = timestamp_utc.strftime("%d-%m-%Y %H:%M:%S")
+                            timestamp_utc = datetime.strptime(timestamp_utc, "%d-%m-%Y %H:%M:%S")
                     case "temperature":
                         temperature = v
                     case "humidity":
@@ -59,7 +61,10 @@ def compute_data(data):
                         altitude = v
                     case "moods":
                         moods = v
-                        
+            
+            logger.info(f"Timestamp str : {timestamp_str}")
+            if timestamp_str == "" or timestamp_str == None:
+                return ""
             row = {
                     "timestamp": timestamp_str,
                     "formatted_ddmmyyyy": get_formatted_ddmmyyyy(timestamp_str),

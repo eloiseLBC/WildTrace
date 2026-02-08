@@ -122,6 +122,8 @@ def computing_collected():
             with open(local_input_path, "r", encoding="utf-8-sig") as f:
                 data = json.load(f)
                 computed_json = compute_data(data)
+                if computed_json == "":
+                    logger.info(f"-- Fichier sans timestamp : {file_name}")
 
         except json.JSONDecodeError as e:
             logger.error(f"INVALID JSON {file_name}: {e}")
