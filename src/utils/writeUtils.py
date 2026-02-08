@@ -31,7 +31,6 @@ def write_json(row, timestamp, options, filename):
         f.flush()
         os.fsync(f.fileno())
         logger.info(f"File saved under name: {filename}")
-        # upload_file_to_drive(path, filename, drive_folder_collected_data_id)
 
 
 def find_folder_id(name, parent_id):

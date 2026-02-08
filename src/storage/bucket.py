@@ -34,11 +34,13 @@ def upload_to_bucket(folder_path, options):
     object_storage, namespace = connect_to_bucket()
     logger.info("Upload des fichiers vers le bucket Oracle Cloud...")
     folder = Path(folder_path)
-    bucket_path = ""
+    bucket_path = "collected/to_compute"
     if options.generator_collected:
         bucket_path = "generated/collected"
     elif options.generator_computed:
         bucket_path = "generated/computed"
+        
+    logger.info(f"Bucket path : {bucket_path}")
 
     if not folder.exists() or not folder.is_dir():
         logger.info(f"No such directory: `{folder_path}`")
@@ -87,7 +89,7 @@ def upload_to_bucket_single_file(object_storage, namespace, file_path, options):
                 bucket_name,
                 file_path_bucket
             )
-            logger.info(f"F→ {file.name} deleted from collected/to_compute.")
+            logger.info(f"→ {file.name} deleted from collected/to_compute.")
             
         except Exception as e:
             logger.error(f"Upload du fichier dans le bucket échoué : {e}")
@@ -163,12 +165,8 @@ def computing_collected(options):
                 if computed_json == "":
                     logger.info(f"-- Fichier sans timestamp : {file_name}")
                 else:
-                    # Ecrire dans /data/output/computed/environmental_to_send
                     write_json(computed_json, timestamp_str, options, file_name)
-                    upload_to_bucket_single_file(object_storage, namespace, computed_data_dir_to_send, options)
-                    
-                    # Déplacer le fichier local dans /data/output/computed/environmental_uploaded
-                    # SUpprimer de /data/output/computed/environmental_to_send
+                    upload_to_bucket_single_file(object_storage, namespace, f"{computed_data_dir_to_send}/{file_name}", options)
 
         except json.JSONDecodeError as e:
             logger.error(f"INVALID JSON {file_name}: {e}")

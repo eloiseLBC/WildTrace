@@ -11,7 +11,7 @@ from utils.dataUtils import get_formatted_moods, get_formatted_environments
 from utils.loggerUtils import logger, timestamp_str
 from datetime import datetime
 from storage.bucket import upload_to_bucket, computing_collected
-from my_secrets.secrets import generated_collected_data_dir
+from my_secrets.secrets import generated_collected_data_dir, collected_data_dir
 
 
 df = pd.DataFrame()
@@ -158,6 +158,6 @@ if __name__ == "__main__":
             upload_to_bucket(f"{generated_collected_data_dir}/", "wildtrace-environmental", options)
         elif options.bucket and not (options.generator_computed or options.generator_collected):
             logger.info("----- Uploading collected files to Oracle Cloud bucket")
-            upload_to_bucket(f"{collected_data_dir}/", "wildtrace-environmental", options)
+            upload_to_bucket(f"{collected_data_dir}/", options)
         logger.info(f"----- End of program -----")
         logger.info(f"Duration : {datetime.now() - timestamp_begin_job}")

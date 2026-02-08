@@ -1,0 +1,18 @@
+[
+  {
+    "local_timestamp": "2000-01-01 20:30:07",
+    "temperature": 21.886398315429688,
+    "luminosity": 9.6768,
+    "white_luminosity": 48,
+    "latitude": 44.842371666666665,
+    "longitude": -0.5791843333333334,
+    "altitude_m": 18.7,
+    "concentration_co2": 249.876708984375,
+    "environments": {
+      "environment_0": "mangrove"
+    },
+    "moods": {
+      "mood_0": "feel_free"
+    }
+  }
+]
