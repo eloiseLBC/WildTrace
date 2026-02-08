@@ -7,6 +7,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 from utils.loggerUtils import logger, log_file
 from my_secrets.secrets import config_oci_path
 
+bucket_name = "wildtrace-environmental"
 
 def connect_to_bucket():
     logger.info("Connexion au bucket Oracle Cloud...")
@@ -26,7 +27,7 @@ def connect_to_bucket():
     return object_storage, namespace
 
 
-def upload_to_bucket(folder_path, bucket_name, options):
+def upload_to_bucket(folder_path, options):
     object_storage, namespace = connect_to_bucket()
     logger.info("Upload des fichiers vers le bucket Oracle Cloud...")
     folder = Path(folder_path)
@@ -55,3 +56,25 @@ def upload_to_bucket(folder_path, bucket_name, options):
         uploaded_folder.mkdir(exist_ok=True)
         file.rename(uploaded_folder / file.name)
 
+def computing_collected():
+    object_storage, namespace = connect_to_bucket()
+    bucket_path = "collected/to_compute"
+    object_list = object_storage.list_objects(namespace, bucket_name, fields="name,timeCreated,size")
+    
+    if len(object_list.data.objects) == 0:
+        logger.info("No files to compute.")
+        return
+    
+    for o in object_list.data.objects:
+        # Récupération du nom du fichier
+        file_name = str(o.name).rsplit('/', 1)[-1]
+        logger.info(f"Nom du fichier : {file_name}")
+        
+        # Vérifier que le fichier existe en local dans 'to_compute'
+        # Oui : On compute, on enregistre en local dans 'computed', on envoie dans le bucket, on supprime de 'to_compute' des deux environnements
+        # Non : On logge et on vérifie si le fichier existe déjà dans 'computed'
+            # Si oui, on logge et un vérifie si le fichier a bien toutes les key des sorties qu'on souhaite, 
+                #  si c'est bon on le logg et on vérifier qu'il n'existe pas dans le bucket dans 'computed', s'il n'existe pas on l'upload, s'il existe on logg et on le supprime de 'to_compute', puis prochain fichier
+            # Si non, on le download dans 'to_compute' et le compute puis le reste (upload bucket)
+        
+        

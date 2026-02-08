@@ -10,7 +10,7 @@ from utils.writeUtils import write_json
 from utils.dataUtils import get_formatted_moods
 from utils.loggerUtils import logger, timestamp_str
 from datetime import datetime
-from storage.sendOracle import upload_to_bucket
+from storage.bucket import upload_to_bucket, computing_collected
 from my_secrets.secrets import generated_collected_data_dir
 
 
@@ -125,10 +125,12 @@ if __name__ == "__main__":
             
         elif options.computed:
             logger.info("----- Data computing and sending mode -----")
+            computing_collected()
             # Get files in bucket
-            # Log number files in bucket and in local for "collected, log the name on missing files"
+            # Log number files in bucket and in local for "collected, log the name for missing files"
             # Compute for each files the missing data
             # Write files in local at data/output/computed
+            # For computing the pressure, It needs latitude, longitude, timestamp and timezone (do it at the end)
 
     except Exception as e:
         logger.error(f"General error : {e}")
@@ -144,10 +146,10 @@ if __name__ == "__main__":
             write_json(json_object, timestamp_str, options, None)
         if options.bucket and options.generator_computed:
             logger.info("----- Uploading generated files (option -g) to Oracle Cloud bucket -----")
-            upload_to_bucket("data/output/generated/environmental_to_send/computed/", "wildtrace-environmental", options)
+            upload_to_bucket("data/output/generated/environmental_to_send/computed/", options)
         if options.bucket and options.generator_collected:
             logger.info("----- Uploading generated files (option -gc) to Oracle Cloud bucket -----")
-            upload_to_bucket(f"{generated_collected_data_dir}/", "wildtrace-environmental", options)
+            upload_to_bucket(f"{generated_collected_data_dir}/", options)
         elif options.bucket and not (options.generator_computed or options.generator_collected):
             logger.info("Upload into Oracle Cloud bucket not activated.")
             logger.info("To activate, use the -b or --bucket option, along with one of the generator options.")
