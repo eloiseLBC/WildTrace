@@ -7,7 +7,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utils.collector import get_pressure_temperature, read_gps_position, get_rtc_datetime, read_luminosity, get_scd30_data
 from utils.generator import activate_generator, activate_generator_collected
 from utils.writeUtils import write_json
-from utils.dataUtils import get_formatted_moods
+from utils.dataUtils import get_formatted_moods, get_formatted_environments
 from utils.loggerUtils import logger, timestamp_str
 from datetime import datetime
 from storage.bucket import upload_to_bucket, computing_collected
@@ -41,6 +41,11 @@ if __name__ == "__main__":
                       action="append",
                       default=[],
                       help="List of moods to filter (can be used multiple times)")
+    parser.add_option("-e", "--environments",
+                      dest="environments",
+                      action="append",
+                      default=[],
+                      help="List of environments to filter (can be used multiple times)")
     parser.add_option("--computed",
                       dest="computed",
                       action="store_true",
@@ -100,6 +105,8 @@ if __name__ == "__main__":
             local_timestamp = get_rtc_datetime(zone_time)
             moods = options.moods if options.moods else ["default"]
             mood_dict = get_formatted_moods(moods)
+            enviroments = options.environments if options.environments else ["default"]
+            environment_dict = get_formatted_environments(enviroments)
                         
             co2, temperature, humidity = get_scd30_data()
             latitude, longitude, altitude = read_gps_position()
@@ -114,6 +121,7 @@ if __name__ == "__main__":
                 "longitude": longitude,
                 "altitude_m": altitude,
                 "concentration_co2": co2,
+                "environments": environment_dict,
                 "moods": mood_dict
             }
             json_object.append(row)

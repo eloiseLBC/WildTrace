@@ -78,3 +78,14 @@ def get_formatted_moods(moods):
     logger.info(f"Moods collectés : {mood_dict}")
         
     return mood_dict
+
+def get_formatted_environments(environments):
+    if len(environments) == 1 and ',' in environments[0]:
+        environments = environments[0].split(',')
+    environment_dict = {}
+    for index, environment in enumerate(environments):
+        logger.info(f"Index : {index}, environmenr : {environment}")
+        environment_dict[f"environment_{index}"] = environment
+    logger.info(f"Collected environments : {environment_dict}")
+        
+    return environment_dict
