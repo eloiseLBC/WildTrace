@@ -6,6 +6,7 @@ import json
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from utils.loggerUtils import logger, log_file
+from utils.computingUtils import compute_data
 from my_secrets.secrets import config_oci_path, computed_data_dir_to_send, collected_uploaded_data_dir, tmp_to_compute_dir
 
 bucket_name = "wildtrace-environmental"
@@ -56,6 +57,7 @@ def upload_to_bucket(folder_path, options):
         uploaded_folder = folder / "uploaded"
         uploaded_folder.mkdir(exist_ok=True)
         file.rename(uploaded_folder / file.name)
+        
 
 def computing_collected():
     object_storage, namespace = connect_to_bucket()
@@ -119,17 +121,12 @@ def computing_collected():
         try:
             with open(local_input_path, "r", encoding="utf-8-sig") as f:
                 data = json.load(f)
-                
+                computed_json = compute_data(data)
+
         except json.JSONDecodeError as e:
             logger.error(f"INVALID JSON {file_name}: {e}")
             continue
 
         # Ici: enrichissement + write computed + upload + cleanup
 
-            
-        # Vérifier que le fichier n'existe pas dans computed/environmental_to_send 
-        # S'il n'existe pas : computer
-        # S'il existe : 
-            # Dans computed/environmental_to_send : Vérifier qu'il a bien toutes les valeurs que souhaite, si oui l'envoyer dans le bucket à la fin du programme, si non supprimer le fichier dans 'environmental_to_send', compute le fichier du bucket et ensuite placer dans environemtal_to_send
-        
         

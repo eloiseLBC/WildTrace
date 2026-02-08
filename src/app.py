@@ -101,18 +101,15 @@ if __name__ == "__main__":
             moods = options.moods if options.moods else ["default"]
             mood_dict = get_formatted_moods(moods)
                         
-            temperature_bmp280, pressure = get_pressure_temperature()
-            co2, temperature_scd30, humidity = get_scd30_data()
+            co2, temperature, humidity = get_scd30_data()
             latitude, longitude, altitude = read_gps_position()
             luminosity, white_luminosity = read_luminosity()
             
             row = {
                 "local_timestamp": local_timestamp,
-                "temperature_bmp280": temperature_bmp280,
-                "temperature_scd30": temperature_scd30,
+                "temperature": temperature,
                 "luminosity": luminosity,
                 "white_luminosity": white_luminosity,
-                "pressure": pressure,
                 "latitude": latitude,
                 "longitude": longitude,
                 "altitude_m": altitude,
