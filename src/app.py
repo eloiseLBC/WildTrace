@@ -113,6 +113,7 @@ if __name__ == "__main__":
                 "latitude": latitude,
                 "longitude": longitude,
                 "altitude_m": altitude,
+                "concentration_co2": co2,
                 "moods": mood_dict
             }
             json_object.append(row)

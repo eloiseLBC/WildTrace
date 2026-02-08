@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 from utils.loggerUtils import logger, log_file
 from .dataUtils import get_formatted_ddmmyyyy, is_night, get_season
 from .geoUtils import (get_altitude, get_city_country, get_hemisphere, get_distance_from_equator,
-                                get_coastline_distance, constants)
+                                get_coastline_distance, constants, get_pressure)
 
 def compute_data(data):
     # Initialisation des variables
@@ -65,14 +65,16 @@ def compute_data(data):
             logger.info(f"Timestamp str : {timestamp_str}")
             if timestamp_str == "" or timestamp_str == None:
                 return ""
+            
+            formatted_ddmmyyyy = get_formatted_ddmmyyyy(timestamp_str)
             row = {
                     "timestamp": timestamp_str,
-                    "formatted_ddmmyyyy": get_formatted_ddmmyyyy(timestamp_str),
+                    "formatted_ddmmyyyy": formatted_ddmmyyyy,
                     "latitude": lat,
                     "longitude": lng,
                     "temperature": temperature,
                     "humidity": humidity,
-                    # "pressure": pressure,
+                    "pressure": get_pressure(lat, lng, formatted_ddmmyyyy, timestamp_utc.hour),
                     "luminosity": luminosity,
                     "white_luminosity": white_luminosity,
                     "concentration_co2": concentration_co2,
@@ -82,12 +84,12 @@ def compute_data(data):
                     **get_distance_from_equator(lat),
                     **get_coastline_distance(lat, lng),
                     "hemisphere": get_hemisphere(lat),
-                    "season": get_season(get_hemisphere(lat), get_formatted_ddmmyyyy(timestamp_str)),
+                    "season": get_season(get_hemisphere(lat), formatted_ddmmyyyy),
                     "is_night": is_night(lat, lng, timestamp_utc),
                     "moods": moods
                     }
 
-            logger.info(f"---------------Row générée --------------- : {row}")
+            logger.info(f"--------------- Computed row --------------- : \n{row}")
             json_object.append(row)
             
         return json_object
