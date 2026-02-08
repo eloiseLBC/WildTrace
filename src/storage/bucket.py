@@ -72,12 +72,25 @@ def upload_to_bucket_single_file(object_storage, namespace, file_path, options):
         return
     
     with file.open("rb") as f:
-        object_storage.put_object(namespace, bucket_name, f"{bucket_path}/{file.name}", f)
-        logger.info(f"→ {file.name} uploaded.")
-        # Move file to 'uploaded' subfolder
-        uploaded_folder = Path(computed_data_dir_uploaded)
-        uploaded_folder.mkdir(exist_ok=True)
-        file.rename(uploaded_folder / file.name)
+        try:
+            object_storage.put_object(namespace, bucket_name, f"{bucket_path}/{file.name}", f)
+            logger.info(f"→ {file.name} uploaded in collected/computed.")
+            # Move file to 'uploaded' subfolder
+            uploaded_folder = Path(computed_data_dir_uploaded)
+            uploaded_folder.mkdir(exist_ok=True)
+            file.rename(uploaded_folder / file.name)
+            # Delete file in bucket 'to_compute'
+            file_path_bucket = f"collected/to_compute/{file.name}"
+            logger.info("File path bucket : " + str(file_path_bucket))
+            object_storage.delete_object(
+                namespace,
+                bucket_name,
+                file_path_bucket
+            )
+            logger.info(f"F→ {file.name} deleted from collected/to_compute.")
+            
+        except Exception as e:
+            logger.error(f"Upload du fichier dans le bucket échoué : {e}")
     
     
     
