@@ -24,6 +24,7 @@ def compute_data(data):
     lat = 0.0
     lng = 0.0
     moods = []
+    enviroments = []
         
     try:
         for row in data:
@@ -61,6 +62,8 @@ def compute_data(data):
                         altitude = v
                     case "moods":
                         moods = v
+                    case "environments":
+                        environments = v
             
             logger.info(f"Timestamp str : {timestamp_str}")
             if timestamp_str == "" or timestamp_str == None:
@@ -86,7 +89,8 @@ def compute_data(data):
                     "hemisphere": get_hemisphere(lat),
                     "season": get_season(get_hemisphere(lat), formatted_ddmmyyyy),
                     "is_night": is_night(lat, lng, timestamp_utc),
-                    "moods": moods
+                    "moods": moods,
+                    "environments": environments
                     }
 
             logger.info(f"--------------- Computed row --------------- : \n{row}")
