@@ -26,6 +26,7 @@ def _get_i2c():
         _I2C = busio.I2C(board.SCL, board.SDA)
     return _I2C
 
+
 def _retry(fn, tries=5, delay=0.2, name="I2C op"):
     last = None
     for i in range(tries):
@@ -36,6 +37,7 @@ def _retry(fn, tries=5, delay=0.2, name="I2C op"):
             logger.warning(f"{name} failed ({i+1}/{tries}): {e}")
             time.sleep(delay)
     raise last
+
 
 def _get_veml():
     global _VEML
@@ -48,6 +50,7 @@ def _get_veml():
         time.sleep(0.2)
     return _VEML
 
+
 def _get_scd():
     global _SCD
     if _SCD is None:
@@ -59,6 +62,7 @@ def _get_scd():
         time.sleep(0.2)
     return _SCD
 
+
 def _get_bmp():
     global _BMP
     if _BMP is None:
@@ -68,15 +72,10 @@ def _get_bmp():
         time.sleep(0.1)
     return _BMP
 
-def _get_rtc():
-    global _RTC
-    if _RTC is None:
-        i2c = _get_i2c()
-        _RTC = adafruit_ds3231.DS3231(i2c)
-    return _RTC
 
 def _bcd_to_int(bcd: int) -> int:
     return ((bcd >> 4) * 10) + (bcd & 0x0F)
+
 
 def get_pressure_temperature():
     try:
@@ -185,25 +184,12 @@ def read_gps_position(timeout=30):
 
     return None, None, None
 
-def read_rtc_datetime() -> datetime:
-    """
-    Retourne un datetime timezone-aware en UTC (comme avant).
-    """
-    rtc = _get_rtc()
-    t = rtc.datetime  # time.struct_time
-
-    return datetime(
-        t.tm_year, t.tm_mon, t.tm_mday,
-        t.tm_hour, t.tm_min, t.tm_sec,
-        tzinfo=timezone.utc
-    )
 
 def get_rtc_datetime(timezone):
     """
     Get RTC datetime as a formatted string in local timezone (Asia/Bangkok).
     """
     logger.info(f"Getting RTC datetime for timezone: {timezone}")
-    dt = read_rtc_datetime()
-    dt_local = dt.astimezone(ZoneInfo(timezone)).strftime("%Y-%m-%d %H:%M:%S")
-    logger.info(f"Local timestamp for timezone '{timezone}': {dt_local}")
-    return dt_local
+    dt = datetime.now(ZoneInfo(timezone)).strftime("%Y-%m-%d %H:%M:%S")
+    logger.info(f"Local timestamp for timezone '{timezone}': {dt}")
+    return dt
