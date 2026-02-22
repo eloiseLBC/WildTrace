@@ -38,7 +38,7 @@ def generate_humidity():
     humidity = random.randint(0, 100)
     return humidity
 
-def generate_pressure(altitude):
+def generate_pressure_formula(altitude):
     pressure = 1013.25 * (1 - (float(altitude) / float(44330))) ** 5.255
     return pressure
 
@@ -223,7 +223,7 @@ def generate_one_collected_row():
 
         temperature = generate_temperature()
         humidity = generate_humidity()
-        pressure = generate_pressure(altitude)
+        pressure = generate_pressure_formula(altitude)
         luminosity = get_luminosity(hour, is_night(lat, lng, timestamp_utc), environment)
         concentration_co2 = generate_co2(environment)
 
