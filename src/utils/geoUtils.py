@@ -98,8 +98,6 @@ def get_pressure(lat, long, formatted_timestamp, hour):
         retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
         openmeteo = openmeteo_requests.Client(session = retry_session)
         
-        logger.info(f"Formatted yyyyMMdd : {formatted_timestamp}")
-
         # Make sure all required weather variables are listed here
         # The order of variables in hourly or daily is important to assign them correctly below
         url = "https://api.open-meteo.com/v1/forecast"
@@ -127,34 +125,62 @@ def get_distance_from_equator(lat):
     """
     Détermine la distancce depuis l'équateur
     """
-    distance = abs(lat)
-    climat = "equatorial" if distance <= 10 else "tropical" if distance <= 23.5 else "polaire" if distance > 60 else "tempere"
-    distance_km = distance * 111
-    return {
-        "distance_equator": distance,
-        "distance_equator_km": distance_km,
-        "climat": climat
-    }
+    if lat is not None : 
+        distance = abs(lat)
+        climat = "equatorial" if distance <= 10 else "tropical" if distance <= 23.5 else "polaire" if distance > 60 else "tempere"
+        distance_km = distance * 111
+        return {
+            "distance_equator": distance,
+            "distance_equator_km": distance_km,
+            "climat": climat
+        }
+    else:
+        logger.warning(f"Latitude nulle -> Pas de calcul de distance_equator, distance_equator_km et climat")
+        return {
+            "distance_equator": None,
+            "distance_equator_km": None,
+            "climat": None
+        }
+        
 
 
 def get_coastline_distance(lat, lng):
     """
     Détermine la distance d'une position d'une côté
     """
-    # Get the directory where this script is located
-    project_root = Path(__file__).parent.parent.parent
-    coastline_path = project_root / "data" / "input" / "ne_10m_coastline.shp"
-    coastlines = gpd.read_file(coastline_path)
-    location = Point(lng, lat)
-    dist = coastlines.distance(location).min()
-    return {
-        "distance_coastline" : float(dist)
-    }
+    if lat is not None or lng is not None: 
+        distance = abs(lat)
+        climat = "equatorial" if distance <= 10 else "tropical" if distance <= 23.5 else "polaire" if distance > 60 else "tempere"
+        distance_km = distance * 111
+        return {
+            "distance_equator": distance,
+            "distance_equator_km": distance_km,
+            "climat": climat
+        }
+        # Get the directory where this script is located
+        project_root = Path(__file__).parent.parent.parent
+        coastline_path = project_root / "data" / "input" / "ne_10m_coastline.shp"
+        coastlines = gpd.read_file(coastline_path)
+        location = Point(lng, lat)
+        dist = coastlines.distance(location).min()
+        return {
+            "distance_coastline" : float(dist)
+        }
+    else:
+        logger.warning(f"Latitude et/ou longitude nulle -> Pas de calcul de distance_coastline")
+        return {
+            "distance_coastline" : None
+        }
+        
 
 
 def get_hemisphere(lat):
     """
     Détermine l'émisphère dans lequel se situe la position
     """
-    hemisphere = "North" if lat > 0 else "South" if lat < 0 else "equateur"
-    return hemisphere
+    if lat is not None:
+        hemisphere = "North" if lat > 0 else "South" if lat < 0 else "equateur"
+        return hemisphere
+    else:
+        logger.warning(f"Latitude nulle -> Pas de calcul de hemisphere")
+        return None
