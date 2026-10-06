@@ -45,15 +45,31 @@ def compute_data(data):
                             timestamp_utc = timestamp_utc.strftime("%d-%m-%Y %H:%M:%S")
                             timestamp_utc = datetime.strptime(timestamp_utc, "%d-%m-%Y %H:%M:%S")
                     case "temperature":
-                        temperature = v
+                        if v is not None: 
+                            temperature = v
+                        else:
+                            # Aller chercher données dans l'API
+                            # Si erreur API, on laisse le fichier dans to_compute
+                            # Avec log qui explique pourquoi il reste dans to_compute : Car pas toutes les données computed, et affiche de l'erreur API ou erreur basique
                     case "humidity":
-                        humidity = v
+                        if v is not None:
+                            humidity = v
+                        else:
+                            # Aller chercher données dans l'API
+                            # Si erreur API, on laisse le fichier dans to_compute
+                            # Avec log qui explique pourquoi il reste dans to_compute : Car pas toutes les données computed, et affiche de l'erreur API ou erreur basique 
                     case "luminosity":
                         luminosity = v
                     case "white_luminosity":
                         white_luminosity = v
                     case "concentration_co2":
-                        concentration_co2 = v
+                        if v is not None:
+                            concentration_co2 = v
+                        else:
+                            # Aller chercher données dans l'API
+                            # Si erreur API, on laisse le fichier dans to_compute
+                            # Avec log qui explique pourquoi il reste dans to_compute : Car pas toutes les données computed, et affiche de l'erreur API ou erreur basique
+                    
                     case "latitude":
                         lat = v
                     case "longitude":
