@@ -29,6 +29,8 @@ def compute_data(data):
     try:
         for row in data:
             logger.info(f"Data : {row}")
+            logger.info(f"Row : {row}")
+            logger.info(f"Row items : {row.items()}")
             for k, v in row.items(): 
                 match k:
                     case "timestamp":
