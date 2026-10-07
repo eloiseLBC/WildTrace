@@ -85,13 +85,25 @@ def compute_data(data):
                             concentration_co2 = concentration_co2_api
                             concentration_co2_source = concentration_co2_source_api
                     case "latitude":
-                        lat = v
+                        if v is not None:
+                            lat = v
+                        else:
+                            logger.info(f"Latitude nulle")
                     case "longitude":
-                        lng = v
+                        if v is not None:
+                            lng = v
+                        else:
+                            logger.info(f"Longitude nulle")
                     case "altitude":
-                        altitude = v
+                        if v is not None:
+                            altitude = v
+                        else:
+                            logger.info(f"Altitude nulle")
                     case "altitude_m":
-                        altitude = v
+                        if v is not None:
+                            altitude = v
+                        else:
+                            logger.info(f"Altitude_m nulle")
                     case "moods":
                         moods = v
                     case "environments":
@@ -117,7 +129,7 @@ def compute_data(data):
                     "luminosity_source": luminosity_source,
                     "white_luminosity": white_luminosity,
                     "concentration_co2": concentration_co2,
-                    "concentration_co2": concentration_co2_source,
+                    "concentration_co2_source": concentration_co2_source,
                     # "environment": environment,
                     **get_city_country(lat, lng),
                     "altitude": altitude,
