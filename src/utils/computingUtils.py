@@ -41,9 +41,16 @@ def compute_data(data, get_biological_day=None):
         
     try:
         for row in data:
+            lat = row.get("latitude")
+            lng = row.get("longitude")
+            altitude = row.get("altitude")
+            if altitude is None:
+                altitude = row.get("altitude_m")
+
+            address = None
+            position = None
+            
             logger.info(f"Data : {data}")
-            logger.info(f"Data type : {type(data)}")
-            logger.info(f"Data first row : {data[0]}")
 
             biological_data = None
             biological_checked = False

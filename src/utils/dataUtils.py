@@ -62,7 +62,7 @@ def get_season(hemisphere, date_now, format="%Y-%m-%d"):
             else:
                 return "Winter"
     except:
-        print("Error in getting season")
+        logger.error("Error in getting season")
     return True
 
 
