@@ -31,6 +31,7 @@ def compute_data(data):
     concentration_co2_source = "sensor"
     lat = 0.0
     lng = 0.0
+    altitude = None
     moods = []
     enviroments = []
         
