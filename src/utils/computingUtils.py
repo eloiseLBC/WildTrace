@@ -137,7 +137,7 @@ def compute_data(data, get_biological_day=None):
                         if v is not None:
                             concentration_co2 = v
                         else:
-                            (concentration_co2_api, concentration_co2_source_api,) = get_co2(lat, lng, timestamp_str, timezone_input)
+                            (concentration_co2_api, concentration_co2_source_api) = get_co2(lat, lng, timestamp_str, timezone_input)
                             concentration_co2 = concentration_co2_api
                             concentration_co2_source = concentration_co2_source_api
 

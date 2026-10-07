@@ -32,35 +32,50 @@ with open(constants_path, 'r') as file:
 
 
 def get_city_country(lat: float, lng: float):
-    """
-    Détermine la ville et le pays selon la latitude et la longitude.
-    """
+    """Détermine la ville, le pays et l'adresse depuis les coordonnées."""
     try:
         results = OCG.reverse_geocode(lat, lng)
-        if results and len(results):
-            try:
-                logger.info(f"Results pour get_city_country : {results}")
-                city = results[0]['components']['city']
-                country = results[0]['components']['country']
-                formatted_address = results[0]['formatted']
-                logger.info(f"Adresse de collecte de données : {formatted_address}")
-                return {
-                    "city": city,
-                    "country": country,
-                    "formatted_address": formatted_address
-                }
-            except KeyError:
-                aquatic_location = results[0]['formatted']
-                logger.info(f"Données récoltées dans une zone aquatique : {aquatic_location}")
-                return {"aquatic_location": aquatic_location}
+
+        if not results:
+            return {}
+
+        result = results[0]
+        components = result.get("components", {})
+        formatted_address = result.get("formatted", "")
+
+        city = (
+            components.get("city")
+            or components.get("town")
+            or components.get("village")
+            or components.get("municipality")
+        )
+        country = components.get("country")
+
+        # Secours pour une adresse du type :
+        # "1 Rue Victor Hugo, 33000 Bordeaux, France"
+        parts = [part.strip() for part in formatted_address.split(",")]
+
+        if len(parts) >= 3:
+            if not city:
+                city = parts[-2]
+                postcode, separator, name = city.partition(" ")
+                if separator and postcode.isdigit():
+                    city = name
+
+            if not country:
+                country = parts[-1]
+
+        logger.info(f"Adresse de collecte de données : {formatted_address}")
+
+        return {
+            "city": city,
+            "country": country,
+            "formatted_address": formatted_address,
+        }
+
     except Exception as ex:
-        logger.error(f"{ex}")
+        logger.error(f"Erreur get_city_country : {ex}")
         return {}
-    except RateLimitExceededError as ex:
-        # Use all available requests
-        logger.error(ex)
-    except InvalidInputError as ex:
-        logger.error(f"Request city, country : Invalid Input Error : {ex}")
 
 
 def get_location_coordinates(location):
