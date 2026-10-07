@@ -114,6 +114,7 @@ if __name__ == "__main__":
             
             row = {
                 "local_timestamp": local_timestamp,
+                "timezone": zone_time,
                 "temperature": temperature,
                 "humidity": humidity,
                 "luminosity": luminosity,
