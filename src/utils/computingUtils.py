@@ -307,17 +307,14 @@ def compute_data(data, get_biological_day=None):
             
             metrics = compute_biological_data(data, get_day)
 
-            # Écrire seulement si au moins un indicateur est calculé.
-            indicators = (
+            if not any(metrics.get(key) is not None for key in (
                 "sleep_duration_score",
                 "hrv_change_percent",
                 "stress_score",
-            )
-
-            if not any(metrics.get(key) is not None for key in indicators):
+            )):
                 logger.info(
-                    f"Aucun indicateur calculable pour {date} : "
-                    "pas de fichier contextualized."
+                    f"Aucun score disponible pour {date} : "
+                    "pas de fichier contextualisé."
                 )
                 continue
 
@@ -345,10 +342,8 @@ def compute_data(data, get_biological_day=None):
                 content_type="application/json",
             )
 
-            logger.info(
-                f"Fichier biologique contextualisé écrit : {destination}"
-            )
-        
+            logger.info(f"Fichier contextualisé écrit : {destination}")
+    
             formatted_ddmmyyyy = get_formatted_ddmmyyyy(timestamp_str)
             row = {
                 "timestamp": timestamp_str,
