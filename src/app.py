@@ -9,6 +9,7 @@ from utils.generator import activate_generator, activate_generator_collected
 from utils.writeUtils import write_json
 from utils.dataUtils import get_formatted_moods, get_formatted_environments
 from utils.loggerUtils import logger, timestamp_str
+from utils.contextualizingUtils import contextualize
 from datetime import datetime
 from storage.bucket import upload_to_bucket, computing_collected
 from my_secrets.secrets import generated_collected_data_dir, collected_data_dir
@@ -141,6 +142,7 @@ if __name__ == "__main__":
             computing_collected(options)
         elif options.contextualize:
             logger.info("----- Data contextualizing and sending mode -----")
+            contextualize()
             
 
     except Exception as e:
@@ -164,5 +166,8 @@ if __name__ == "__main__":
         elif options.bucket and not (options.generator_computed or options.generator_collected):
             logger.info("----- Uploading collected files to Oracle Cloud bucket")
             upload_to_bucket(f"{collected_data_dir}/", options)
+        elif options.contextualize:
+            logger.info("----- Uploading contextualized files to Oracle Cloud bucket")
+            logger.info("TODO")
         logger.info(f"----- End of program -----")
         logger.info(f"Duration : {datetime.now() - timestamp_begin_job}")
