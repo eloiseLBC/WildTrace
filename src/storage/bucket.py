@@ -169,9 +169,9 @@ def computing_collected(options):
             continue
 
         if file_name in files_computed_environmental_to_send:
-            logger.warning(f"SKIP: {file_name} already exists in local computed/environmental_to_send")
-            upload_to_bucket_single_file(object_storage, namespace, f"{computed_data_dir_to_send}/{file_name}", options)
-            continue
+            logger.info(
+                f"Recalcul avant validation et upload : {file_name}"
+            )
 
         # Choix input local
         if file_name in files_collected_uploaded:
@@ -203,7 +203,9 @@ def computing_collected(options):
                     ),
                 )
                 if computed_json == "":
-                    logger.info(f"-- Fichier sans timestamp : {file_name}")
+                    logger.warning(
+                        f"Fichier incomplet conservé dans to_compute : {file_name}"
+                    )
                 else:
                     write_json(computed_json, timestamp_str, options, file_name)
                     upload_to_bucket_single_file(object_storage, namespace, f"{computed_data_dir_to_send}/{file_name}", options)

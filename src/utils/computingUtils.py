@@ -187,7 +187,7 @@ def compute_data(data, get_biological_day=None):
                                     altitude_source = "computed"
                                 else:
                                     logger.warning("Adresse absente du fichier biologique.")
-                                
+                                                                    
                     case "altitude_m":
                         if v is not None:
                             altitude = v
@@ -209,6 +209,13 @@ def compute_data(data, get_biological_day=None):
             if timestamp_str == "" or timestamp_str == None:
                 return ""
 
+            if any(value is None for value in (lat, lng, altitude, temperature, humidity, concentration_co2, luminosity,)):
+                logger.warning(
+                    "Donnée manquante après fallback. "
+                    "Le fichier reste dans collected/to_compute."
+                )
+                return ""
+            
             formatted_ddmmyyyy = get_formatted_ddmmyyyy(timestamp_str)
             row = {
                 "timestamp": timestamp_str,
