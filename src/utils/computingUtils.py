@@ -5,6 +5,8 @@ import math
 import random
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
+from statistics import median
+
 
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -13,6 +15,102 @@ from .dataUtils import get_formatted_ddmmyyyy, is_night, get_season
 from .geoUtils import (get_altitude, get_city_country, get_hemisphere, get_distance_from_equator,
                                 get_coastline_distance, constants, get_pressure, get_temperature_humidity,
                                 get_co2, get_luminosity, get_location_coordinates)
+
+def compute_biological_data(biological_data, get_biological_day):
+    """Calcule des indicateurs personnels à partir du résumé biologique."""
+    result = {
+        "sleep_duration_score": None,
+        "sleep_score_source": "duration_ratio_v1",
+        "hrv_baseline_ms": None,
+        "hrv_baseline_days": 0,
+        "hrv_change_percent": None,
+        "stress_score": None,
+        "stress_status": "insufficient_data"
+    }
+
+    def valid_number(value):
+        return (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and math.isfinite(value)
+        )
+
+    if not isinstance(biological_data, dict):
+        return result
+
+    summary = biological_data.get("summary")
+    if not isinstance(summary, dict):
+        return result
+
+    # Zéro reste indéterminé : sommeil absent ou non enregistré.
+    sleep_hours = summary.get("sleep_duration_hours")
+    if valid_number(sleep_hours) and 0 < sleep_hours <= 24:
+        result["sleep_duration_score"] = round(
+            min(sleep_hours / 8, 1) * 100, 1
+        )
+
+    current_hrv = summary.get("hrv_avg_ms")
+
+    try:
+        date = datetime.strptime(biological_data["date"], "%Y-%m-%d")
+    except (KeyError, ValueError, TypeError):
+        logger.warning("Date biologique absente ou invalide.")
+        return result
+
+    if get_biological_day is None:
+        return result
+
+    historical_hrv = []
+
+    # Uniquement les jours précédents : exclure le jour calculé.
+    first_watch_date = datetime(2026, 2, 1).date()
+
+    for offset in range(1, 29):
+        previous_day = (date - timedelta(days=offset)).date()
+
+        if previous_day < first_watch_date:
+            break
+
+        previous_date = previous_day.isoformat()
+        previous = get_biological_day(previous_date)
+
+        if not isinstance(previous, dict):
+            continue
+
+        # Ne pas utiliser un fichier attribué à une autre journée.
+        if previous.get("date") != previous_date:
+            continue
+
+        previous_summary = previous.get("summary")
+        if not isinstance(previous_summary, dict):
+            continue
+
+        value = previous_summary.get("hrv_avg_ms")
+        if valid_number(value) and value > 0:
+            historical_hrv.append(value)
+
+    result["hrv_baseline_days"] = len(historical_hrv)
+
+    # Au moins 14 jours valides sur les 28 précédents.
+    if len(historical_hrv) >= 14:
+        baseline = median(historical_hrv)
+        result["hrv_baseline_ms"] = round(baseline, 2)
+
+        if valid_number(current_hrv) and current_hrv > 0:
+            change = (current_hrv - baseline) / baseline * 100
+
+            result["hrv_change_percent"] = round(change, 1)
+
+            # Indicateur expérimental : baisse relative de HRV.
+            # Zéro signifie aucune baisse détectée, pas absence de stress.
+            result["stress_score"] = round(
+                min(100, max(0, -change)), 1
+            )
+            result["stress_status"] = "estimated"
+        else:
+            result["stress_status"] = "missing_current_hrv"
+
+    return result
 
 def compute_data(data, get_biological_day=None):
     # Initialisation des variables
@@ -216,6 +314,12 @@ def compute_data(data, get_biological_day=None):
                 )
                 return ""
             
+            # Charger le fichier même si les coordonnées capteur sont présentes.
+            biological_data = load_biological_day()
+            biological_metrics = compute_biological_data(
+                biological_data, get_biological_day
+            )
+    
             formatted_ddmmyyyy = get_formatted_ddmmyyyy(timestamp_str)
             row = {
                 "timestamp": timestamp_str,
@@ -249,6 +353,14 @@ def compute_data(data, get_biological_day=None):
                 "is_night": is_night(lat, lng, timestamp_utc),
                 "moods": moods,
                 "environments": environments,
+                "biological": {
+                    "date": (
+                        biological_data.get("date")
+                        if isinstance(biological_data, dict) else None
+                    ),
+                    "source": "wildtrace-biological",
+                    **biological_metrics,
+                },
             }
 
             logger.info(f"--------------- Computed row --------------- : \n{row}")

@@ -6,7 +6,7 @@ import json
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from utils.loggerUtils import logger, log_file, timestamp_str
-from utils.computingUtils import compute_data
+from utils.computingUtils import compute_data, compute_biological_data
 from utils.writeUtils import write_json
 from my_secrets.secrets import config_oci_path, computed_data_dir_to_send, collected_uploaded_data_dir, tmp_to_compute_dir, computed_data_dir_uploaded
 
@@ -94,7 +94,88 @@ def upload_to_bucket_single_file(object_storage, namespace, file_path, options):
         except Exception as e:
             logger.error(f"Upload du fichier dans le bucket échoué : {e}")
     
-    
+def computing_biological(object_storage, namespace):
+    biological_bucket = "wildtrace-biological"
+    prefix = "collected/computed/biological_daily_"
+    cache = {}
+
+    def get_day(date):
+        if date not in cache:
+            cache[date] = get_biological_daily(
+                object_storage, namespace, date
+            )
+        return cache[date]
+
+    # Parcourir toutes les pages de fichiers du bucket.
+    start = None
+
+    while True:
+        params = {"prefix": prefix}
+        if start is not None:
+            params["start"] = start
+
+        page = object_storage.list_objects(
+            namespace, biological_bucket, **params
+        ).data
+
+        for obj in page.objects:
+            date = obj.name[len(prefix):-5]
+
+            if not obj.name.endswith(".json") or "/" in date:
+                continue
+
+            try:
+                # Lecture directe pour conserver l'ETag du fichier.
+                response = object_storage.get_object(
+                    namespace, biological_bucket, obj.name
+                )
+                try:
+                    data = json.loads(
+                        response.data.content.decode("utf-8-sig")
+                    )
+                    etag = response.headers["etag"]
+                finally:
+                    response.data.close()
+
+                if not isinstance(data, dict) or data.get("date") != date:
+                    logger.warning(f"Fichier biologique invalide : {obj.name}")
+                    continue
+
+                cache[date] = data
+                metrics = compute_biological_data(data, get_day)
+
+                # Conserver les données existantes et ajouter les indicateurs.
+                if data.get("computed_metrics") == metrics:
+                    logger.info(f"Indicateurs biologiques déjà à jour : {obj.name}")
+                    continue
+
+                enriched = {**data, "computed_metrics": metrics}
+
+                object_storage.put_object(
+                    namespace,
+                    biological_bucket,
+                    obj.name,
+                    json.dumps(
+                        enriched, ensure_ascii=False, indent=2,
+                        allow_nan=False,
+                    ).encode("utf-8"),
+                    content_type="application/json",
+                    if_match=etag,
+                )
+
+                cache[date] = enriched
+                logger.info(f"Calcul biologique enregistré : {obj.name}")
+
+            except Exception as exc:
+                logger.error(
+                    f"Calcul biologique échoué pour {obj.name} : {exc}"
+                )
+
+        start = page.next_start_with
+        if not start:
+            break
+        
+        
 def get_biological_daily(object_storage, namespace, date):
     """Récupère le JSON biologique du jour, ou None si indisponible."""
     object_name = f"collected/computed/biological_daily_{date}.json"
@@ -135,6 +216,8 @@ def get_biological_daily(object_storage, namespace, date):
 
 def computing_collected(options):
     object_storage, namespace = connect_to_bucket()
+    
+    computing_biological(object_storage, namespace)
 
     bucket_path = "collected/to_compute"
     object_list = object_storage.list_objects(
