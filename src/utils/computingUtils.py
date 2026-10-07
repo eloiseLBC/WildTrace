@@ -19,13 +19,13 @@ def compute_data(data):
     timestamp_utc = None
     timezone_input = None
     temperature = 0.0
-    temperature_source = "Sensor"
+    temperature_source = "sensor"
     humidity = 0.0
-    humidity_source = "Sensor"
+    humidity_source = "sensor"
     luminosity = 0.0
     white_luminosity = 0.0
     concentration_co2 = 0.0
-    concentration_co2_source = "Sensor"
+    concentration_co2_source = "sensor"
     lat = 0.0
     lng = 0.0
     moods = []
