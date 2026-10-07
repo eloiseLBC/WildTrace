@@ -186,14 +186,72 @@ def get_hemisphere(lat):
         logger.warning(f"Latitude nulle -> Pas de calcul de hemisphere")
         return None
     
-def get_temperature(lat, lng, timestamp):
+def get_temperature(lat, lng, timestamp, timezone):
     """
     Détermine la température dans le cas d'un capteur défaillant
     Nécessite en entrée : latitude, longitude, timestamp
     """
-    logger.info(f"Timestamp : {timestamp}, type : {type(timestamp)}")
-    date = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
-    date = date.strftime("%d-%m-%Y %H:%M:%S")
-    date = datetime.strptime(date, "%d-%m-%YT%H:%M:%SZ")
-    logger.info(f"Timestamp formatted : {date}")
+    date = datetime.fromisoformat(timestamp).replace(
+        tzinfo=ZoneInfo(timezone)
+    )
+    logger.info(f"Timestamp avec timezone : {date}")
+    previous_hour = date.replace(minute=0, second=0, microsecond=0)
+    next_hour = previous_hour + timedelta(hours=1)
+
+    params = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "timezone": timezone,
+        "start_date": previous_hour.date().isoformat(),
+        "end_date": next_hour.date().isoformat(),
+        "hourly": "temperature_2m,relative_humidity_2m",
+        "temperature_unit": "celsius",
+    }
+
+    try:
+        response = requests.get(
+            "https://archive-api.open-meteo.com/v1/archive",
+            params=params,
+            timeout=20,
+        )
+        response.raise_for_status()
+        hourly = response.json()["hourly"]
+
+        times = hourly["time"]
+        before = times.index(previous_hour.strftime("%Y-%m-%dT%H:%M"))
+        weight = (date - previous_hour).total_seconds() / 3600
+
+        # À une heure exacte, la valeur suivante n'est pas nécessaire.
+        after = (
+            times.index(next_hour.strftime("%Y-%m-%dT%H:%M"))
+            if weight > 0 else before
+        )
+
+        def interpolate(variable):
+            start = hourly[variable][before]
+            end = hourly[variable][after]
+
+            if start is None or end is None:
+                raise ValueError(f"Donnée manquante : {variable}")
+
+            return round(start + weight * (end - start), 2)
+
+        return {
+            "temperature": interpolate("temperature_2m"),
+            "humidity": interpolate("relative_humidity_2m"),
+            "timestamp": timestamp,
+            "timezone": timezone,
+            "source": "open_meteo",
+            "interpolated": weight > 0,
+        }
+
+    except (
+        requests.RequestException,
+        KeyError,
+        IndexError,
+        ValueError,
+        TypeError,
+    ) as exc:
+        logger.warning(f"Fallback Open-Meteo indisponible : {exc}")
+        return None
     
