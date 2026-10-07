@@ -54,19 +54,14 @@ def compute_data(data):
                             temperature = v
                         else:
                             temperature_api.value, temperature_source_api, humidity_api, humidity_source_api  = get_temperature_humidity(lat, lng, timestamp_str, timezone_input)
-                            logger.info(f"Temperature_api : {}")
                             temperature = temperature_api
                             temperature_source = temperature_source_api
-                            # Si erreur API, on laisse le fichier dans to_compute
-                            # Avec log qui explique pourquoi il reste dans to_compute : Car pas toutes les données computed, et affiche de l'erreur API ou erreur basique
                     case "humidity":
                         if v is not None:
                             humidity = v
                         else:
                             humidity = humidity_api
                             humidity_source = humidity_source_api
-                            # Si erreur API, on laisse le fichier dans to_compute
-                            # Avec log qui explique pourquoi il reste dans to_compute : Car pas toutes les données computed, et affiche de l'erreur API ou erreur basique 
                     case "luminosity":
                         luminosity = v
                     case "white_luminosity":
