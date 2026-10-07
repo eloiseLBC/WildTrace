@@ -146,6 +146,7 @@ def computing_biological(object_storage, namespace):
 
                 # Conserver les données existantes et ajouter les indicateurs.
                 if data.get("computed_metrics") == metrics:
+                    logger.info(f"Indicateurs biologiques déjà à jour : {obj.name}")
                     continue
 
                 enriched = {**data, "computed_metrics": metrics}
@@ -280,7 +281,9 @@ def computing_collected(options):
                 data = json.load(f)
                 computed_json = compute_data(
                     data,
-                    get_biological_day=get_biological_day,
+                    get_biological_day=lambda date: get_biological_daily(
+                        object_storage, namespace, date
+                    ),
                 )
                 if computed_json == "":
                     logger.warning(

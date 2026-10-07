@@ -50,8 +50,6 @@ def compute_biological_data(biological_data, get_biological_day):
         )
 
     current_hrv = summary.get("hrv_avg_ms")
-    if not valid_number(current_hrv) or current_hrv <= 0:
-        return result
 
     try:
         date = datetime.strptime(biological_data["date"], "%Y-%m-%d")
@@ -65,8 +63,15 @@ def compute_biological_data(biological_data, get_biological_day):
     historical_hrv = []
 
     # Uniquement les jours précédents : exclure le jour calculé.
+    first_watch_date = datetime(2026, 2, 1).date()
+
     for offset in range(1, 29):
-        previous_date = (date - timedelta(days=offset)).date().isoformat()
+        previous_day = (date - timedelta(days=offset)).date()
+
+        if previous_day < first_watch_date:
+            break
+
+        previous_date = previous_day.isoformat()
         previous = get_biological_day(previous_date)
 
         if not isinstance(previous, dict):
@@ -90,10 +95,12 @@ def compute_biological_data(biological_data, get_biological_day):
     if len(historical_hrv) >= 14:
         baseline = median(historical_hrv)
         result["hrv_baseline_ms"] = round(baseline, 2)
-        result["hrv_change_percent"] = round(
-            (current_hrv - baseline) / baseline * 100, 1
-        )
-        result["stress_status"] = "not_calibrated"
+
+        if valid_number(current_hrv) and current_hrv > 0:
+            result["hrv_change_percent"] = round(
+                (current_hrv - baseline) / baseline * 100, 1
+            )
+            result["stress_status"] = "not_calibrated"
 
     return result
 
@@ -304,45 +311,6 @@ def compute_data(data, get_biological_day=None):
             biological_metrics = compute_biological_data(
                 biological_data, get_biological_day
             )
-            
-            metrics = compute_biological_data(data, get_day)
-
-            if not any(metrics.get(key) is not None for key in (
-                "sleep_duration_score",
-                "hrv_change_percent",
-                "stress_score",
-            )):
-                logger.info(
-                    f"Aucun score disponible pour {date} : "
-                    "pas de fichier contextualisé."
-                )
-                continue
-
-            contextualized = {
-                **data,
-                "source_daily_file": obj.name,
-                "computed_metrics": metrics,
-            }
-
-            destination = (
-                "collected/contextualized/"
-                f"bioligical_contextualized_computing_{date}.json"
-            )
-
-            object_storage.put_object(
-                namespace,
-                biological_bucket,
-                destination,
-                json.dumps(
-                    contextualized,
-                    ensure_ascii=False,
-                    indent=2,
-                    allow_nan=False,
-                ).encode("utf-8"),
-                content_type="application/json",
-            )
-
-            logger.info(f"Fichier contextualisé écrit : {destination}")
     
             formatted_ddmmyyyy = get_formatted_ddmmyyyy(timestamp_str)
             row = {
