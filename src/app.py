@@ -82,7 +82,7 @@ if __name__ == "__main__":
                             json_object = activate_generator(json_object, file)
                             df = pd.DataFrame(json_object)
                             logger.info(f"DataFrame Pandas created with {len(df)} lines")
-                            print(df.head())
+                            logger.info(df.head())
                             logger.info("----- Writing generated data in JSON format -----")
                             write_json(json_object, timestamp_str, options, file)
 
@@ -94,7 +94,7 @@ if __name__ == "__main__":
                 json_object = activate_generator_collected(json_object)
                 df = pd.DataFrame(json_object)
                 logger.info(f"DataFrame Pandas created with {len(df)} lines")
-                print(df.head())
+                logger.info(df.head())
 
             except Exception as e:
                 logger.error(f"Data generator error: {e}")
@@ -114,6 +114,7 @@ if __name__ == "__main__":
             
             row = {
                 "local_timestamp": local_timestamp,
+                "timezone": zone_time,
                 "temperature": temperature,
                 "humidity": humidity,
                 "luminosity": luminosity,

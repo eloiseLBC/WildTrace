@@ -10,13 +10,16 @@ def is_night(lat: float, lng: float, timestamp: datetime) -> bool:
     """
     Détermine s'il fait nuit à un emplacement donné (latitude, longitude) à une date précise.
     """
-    # Créer une localisation fictive (ville générique) sans chercher de ville
-    location = LocationInfo(name="point", region="earth", timezone="UTC", latitude=lat, longitude=lng)
-    # Calcule les heures du lever et coucher du soleil
-    s = sun(location.observer, date=timestamp.date(), tzinfo=pytz.UTC)
-    if timestamp.tzinfo is None:
-        timestamp = timestamp.replace(tzinfo=timezone.utc)
-    return timestamp < s["sunrise"] or timestamp > s["sunset"]
+    if lat is not None or lng is not None :
+        # Créer une localisation fictive (ville générique) sans chercher de ville
+        location = LocationInfo(name="point", region="earth", timezone="UTC", latitude=lat, longitude=lng)
+        # Calcule les heures du lever et coucher du soleil
+        s = sun(location.observer, date=timestamp.date(), tzinfo=pytz.UTC)
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
+        return timestamp < s["sunrise"] or timestamp > s["sunset"]
+    else:
+        logger.warning(f"Latitude et/ou longitude nulle -> Pas de calcul de is_night")
 
 
 def get_season(hemisphere, date_now, format="%Y-%m-%d"):
@@ -59,7 +62,7 @@ def get_season(hemisphere, date_now, format="%Y-%m-%d"):
             else:
                 return "Winter"
     except:
-        print("Error in getting season")
+        logger.error("Error in getting season")
     return True
 
 
