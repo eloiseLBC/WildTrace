@@ -31,6 +31,9 @@ def compute_data(data, get_biological_day=None):
     concentration_co2_source = "sensor"
     lat = 0.0
     lng = 0.0
+    lat_source = "sensor"
+    lng_source = "sensor"
+    altitude_source = "sensor"
     altitude = None
     moods = []
     enviroments = []
@@ -149,6 +152,7 @@ def compute_data(data, get_biological_day=None):
                             if address:
                                 position = get_location_coordinates(address)
                                 lat = position["latitude"]
+                                lat_source = "computed"
                             else:
                                 logger.warning(
                                     "Adresse absente du fichier biologique."
@@ -161,6 +165,7 @@ def compute_data(data, get_biological_day=None):
                             logger.info("Longitude nulle -> Calcul de la donnée")
                             if address:
                                 lng = position["longitude"]
+                                lng_source = "computed"
                             else:
                                 logger.warning("Adresse absente du fichier biologique.")
 
@@ -172,6 +177,7 @@ def compute_data(data, get_biological_day=None):
                             if row.get("altitude_m") is None:
                                 if address:
                                     altitude = position["altitude"]
+                                    altitude_source = "computed"
                                 else:
                                     logger.warning("Adresse absente du fichier biologique.")
                                 
@@ -202,7 +208,9 @@ def compute_data(data, get_biological_day=None):
                 "timezone": timezone_input,
                 "formatted_ddmmyyyy": formatted_ddmmyyyy,
                 "latitude": lat,
+                "latitude_source": lat_source,
                 "longitude": lng,
+                "longitude_source": lng_source,
                 "temperature": temperature,
                 "temperature_source": temperature_source,
                 "humidity": humidity,
@@ -217,6 +225,7 @@ def compute_data(data, get_biological_day=None):
                 "concentration_co2_source": concentration_co2_source,
                 **get_city_country(lat, lng),
                 "altitude": altitude,
+                "altitude_source": altitude_source,
                 **get_distance_from_equator(lat),
                 **get_coastline_distance(lat, lng),
                 "hemisphere": get_hemisphere(lat),
