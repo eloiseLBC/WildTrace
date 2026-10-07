@@ -9,15 +9,18 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 from utils.loggerUtils import logger, log_file
 from .dataUtils import get_formatted_ddmmyyyy, is_night, get_season
 from .geoUtils import (get_altitude, get_city_country, get_hemisphere, get_distance_from_equator,
-                                get_coastline_distance, constants, get_pressure, get_temperature)
+                                get_coastline_distance, constants, get_pressure, get_temperature_humidity)
 
 def compute_data(data):
     # Initialisation des variables
     json_object = []
     timestamp_str = ""
     timestamp_utc = None
+    timezone_input = None
     temperature = 0.0
+    temperature_source = "Sensor"
     humidity = 0.0
+    humidity_source = "Sensor"
     luminosity = 0.0
     white_luminosity = 0.0
     concentration_co2 = 0.0
@@ -44,20 +47,24 @@ def compute_data(data):
                             timestamp_utc = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
                             timestamp_utc = timestamp_utc.strftime("%d-%m-%Y %H:%M:%S")
                             timestamp_utc = datetime.strptime(timestamp_utc, "%d-%m-%Y %H:%M:%S")
+                    case "timezone":
+                        timezone_input = v
                     case "temperature":
                         if v is not None: 
                             temperature = v
                         else:
-                            get_temperature(lat, lng, timestamp_str)
-                            # Aller chercher données dans l'API
+                            temperature_api.value, temperature_source_api, humidity_api, humidity_source_api  = get_temperature_humidity(lat, lng, timestamp_str, timezone_input)
+                            logger.info(f"Temperature_api : {}")
+                            temperature = temperature_api
+                            temperature_source = temperature_source_api
                             # Si erreur API, on laisse le fichier dans to_compute
                             # Avec log qui explique pourquoi il reste dans to_compute : Car pas toutes les données computed, et affiche de l'erreur API ou erreur basique
                     case "humidity":
                         if v is not None:
                             humidity = v
                         else:
-                            humidity = None
-                            # Aller chercher données dans l'API
+                            humidity = humidity_api
+                            humidity_source = humidity_source_api
                             # Si erreur API, on laisse le fichier dans to_compute
                             # Avec log qui explique pourquoi il reste dans to_compute : Car pas toutes les données computed, et affiche de l'erreur API ou erreur basique 
                     case "luminosity":
@@ -72,7 +79,6 @@ def compute_data(data):
                             # Aller chercher données dans l'API
                             # Si erreur API, on laisse le fichier dans to_compute
                             # Avec log qui explique pourquoi il reste dans to_compute : Car pas toutes les données computed, et affiche de l'erreur API ou erreur basique
-                    
                     case "latitude":
                         lat = v
                     case "longitude":
@@ -97,7 +103,9 @@ def compute_data(data):
                     "latitude": lat,
                     "longitude": lng,
                     "temperature": temperature,
+                    "temperature_source": temperature_source,
                     "humidity": humidity,
+                    "humidity_source": humidity_source,
                     "pressure": get_pressure(lat, lng, formatted_ddmmyyyy, timestamp_utc.hour),
                     "luminosity": luminosity,
                     "white_luminosity": white_luminosity,
