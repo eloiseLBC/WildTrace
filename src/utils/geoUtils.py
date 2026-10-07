@@ -37,6 +37,7 @@ def get_city_country(lat: float, lng: float):
         results = OCG.reverse_geocode(lat, lng)
         if results and len(results):
             try:
+                logger.info(f"Results pour get_city_country : {results}")
                 city = results[0]['components']['city']
                 country = results[0]['components']['country']
                 formatted_address = results[0]['formatted']
@@ -176,7 +177,7 @@ def get_coastline_distance(lat, lng):
 
 def get_hemisphere(lat):
     """
-    Détermine l'émisphère dans lequel se situe la position
+    Détermine l'hémisphère dans lequel se situe la position
     """
     if lat is not None:
         hemisphere = "North" if lat > 0 else "South" if lat < 0 else "equateur"
@@ -184,3 +185,15 @@ def get_hemisphere(lat):
     else:
         logger.warning(f"Latitude nulle -> Pas de calcul de hemisphere")
         return None
+    
+def get_temperature(lat, lng, timestamp):
+    """
+    Détermine la température dans le cas d'un capteur défaillant
+    Nécessite en entrée : latitude, longitude, timestamp
+    """
+    logger.info(f"Timestamp : {timestamp}, type : {type(timestamp)}")
+    date = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    date = date.strftime("%d-%m-%Y %H:%M:%S")
+    date = datetime.strptime(date, "%d-%m-%YT%H:%M:%SZ")
+    logger.info(f"Timestamp formatted : {date}")
+    

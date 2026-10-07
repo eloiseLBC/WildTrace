@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 from utils.loggerUtils import logger, log_file
 from .dataUtils import get_formatted_ddmmyyyy, is_night, get_season
 from .geoUtils import (get_altitude, get_city_country, get_hemisphere, get_distance_from_equator,
-                                get_coastline_distance, constants, get_pressure)
+                                get_coastline_distance, constants, get_pressure, get_temperature)
 
 def compute_data(data):
     # Initialisation des variables
@@ -48,6 +48,7 @@ def compute_data(data):
                         if v is not None: 
                             temperature = v
                         else:
+                            get_temperature(lat, lng, timestamp_str)
                             # Aller chercher données dans l'API
                             # Si erreur API, on laisse le fichier dans to_compute
                             # Avec log qui explique pourquoi il reste dans to_compute : Car pas toutes les données computed, et affiche de l'erreur API ou erreur basique
@@ -55,6 +56,7 @@ def compute_data(data):
                         if v is not None:
                             humidity = v
                         else:
+                            humidity = None
                             # Aller chercher données dans l'API
                             # Si erreur API, on laisse le fichier dans to_compute
                             # Avec log qui explique pourquoi il reste dans to_compute : Car pas toutes les données computed, et affiche de l'erreur API ou erreur basique 
@@ -66,6 +68,7 @@ def compute_data(data):
                         if v is not None:
                             concentration_co2 = v
                         else:
+                            concentration_co2 = None
                             # Aller chercher données dans l'API
                             # Si erreur API, on laisse le fichier dans to_compute
                             # Avec log qui explique pourquoi il reste dans to_compute : Car pas toutes les données computed, et affiche de l'erreur API ou erreur basique
