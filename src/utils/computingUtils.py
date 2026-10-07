@@ -9,7 +9,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 from utils.loggerUtils import logger, log_file
 from .dataUtils import get_formatted_ddmmyyyy, is_night, get_season
 from .geoUtils import (get_altitude, get_city_country, get_hemisphere, get_distance_from_equator,
-                                get_coastline_distance, constants, get_pressure, get_temperature_humidity)
+                                get_coastline_distance, constants, get_pressure, get_temperature_humidity,
+                                get_co2)
 
 def compute_data(data):
     # Initialisation des variables
@@ -24,6 +25,7 @@ def compute_data(data):
     luminosity = 0.0
     white_luminosity = 0.0
     concentration_co2 = 0.0
+    concentration_co2_source = "Sensor"
     lat = 0.0
     lng = 0.0
     moods = []
@@ -53,7 +55,7 @@ def compute_data(data):
                         if v is not None: 
                             temperature = v
                         else:
-                            temperature_api.value, temperature_source_api, humidity_api, humidity_source_api  = get_temperature_humidity(lat, lng, timestamp_str, timezone_input)
+                            temperature_api, temperature_source_api, humidity_api, humidity_source_api  = get_temperature_humidity(lat, lng, timestamp_str, timezone_input)
                             temperature = temperature_api
                             temperature_source = temperature_source_api
                     case "humidity":
@@ -70,7 +72,9 @@ def compute_data(data):
                         if v is not None:
                             concentration_co2 = v
                         else:
-                            concentration_co2 = None
+                            concentration_co2_api, concentration_co2_source_api = get_co2(lat, lng, timestamp_str, timezone_input)
+                            concentration_co2 = concentration_co2_api
+                            concentration_co2_source = concentration_co2_source_api
                             # Aller chercher données dans l'API
                             # Si erreur API, on laisse le fichier dans to_compute
                             # Avec log qui explique pourquoi il reste dans to_compute : Car pas toutes les données computed, et affiche de l'erreur API ou erreur basique
@@ -94,6 +98,7 @@ def compute_data(data):
             formatted_ddmmyyyy = get_formatted_ddmmyyyy(timestamp_str)
             row = {
                     "timestamp": timestamp_str,
+                    "timezone": timezone_input,
                     "formatted_ddmmyyyy": formatted_ddmmyyyy,
                     "latitude": lat,
                     "longitude": lng,
@@ -105,6 +110,7 @@ def compute_data(data):
                     "luminosity": luminosity,
                     "white_luminosity": white_luminosity,
                     "concentration_co2": concentration_co2,
+                    "concentration_co2": concentration_co2_source,
                     # "environment": environment,
                     **get_city_country(lat, lng),
                     "altitude": altitude,

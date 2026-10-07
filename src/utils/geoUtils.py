@@ -250,3 +250,54 @@ def get_temperature_humidity(lat, lng, timestamp, timezone):
         logger.warning(f"Fallback Open-Meteo indisponible : {exc}")
         return None
     
+def get_co2(latitude, longitude, timestamp, timezone):
+    date = datetime.fromisoformat(timestamp).replace(
+        tzinfo=ZoneInfo(timezone)
+    )
+    previous_hour = date.replace(minute=0, second=0, microsecond=0)
+    next_hour = previous_hour + timedelta(hours=1)
+
+    params = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "timezone": timezone,
+        "start_date": previous_hour.date().isoformat(),
+        "end_date": next_hour.date().isoformat(),
+        "hourly": "carbon_dioxide",
+    }
+
+    try:
+        response = requests.get(
+            "https://air-quality-api.open-meteo.com/v1/air-quality",
+            params=params,
+            timeout=20,
+        )
+        response.raise_for_status()
+        hourly = response.json()["hourly"]
+
+        times = hourly["time"]
+        values = hourly["carbon_dioxide"]
+        before = times.index(previous_hour.strftime("%Y-%m-%dT%H:%M"))
+        weight = (date - previous_hour).total_seconds() / 3600
+        after = (
+            times.index(next_hour.strftime("%Y-%m-%dT%H:%M"))
+            if weight > 0 else before
+        )
+
+        if values[before] is None or values[after] is None:
+            raise ValueError("Concentration CO₂ manquante")
+
+        return round(
+            values[before] + weight * (values[after] - values[before]),
+            2,
+        ), "open_meteo"
+
+    except (
+        requests.RequestException,
+        KeyError,
+        IndexError,
+        ValueError,
+        TypeError,
+    ) as exc:
+        logger.warning(f"Fallback CO₂ indisponible : {exc}")
+        return None
