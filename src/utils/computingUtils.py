@@ -4,13 +4,15 @@ import json
 import math
 import random
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from utils.loggerUtils import logger, log_file
 from .dataUtils import get_formatted_ddmmyyyy, is_night, get_season
 from .geoUtils import (get_altitude, get_city_country, get_hemisphere, get_distance_from_equator,
                                 get_coastline_distance, constants, get_pressure, get_temperature_humidity,
-                                get_co2)
+                                get_co2, get_luminosity)
 
 def compute_data(data):
     # Initialisation des variables
@@ -22,7 +24,8 @@ def compute_data(data):
     temperature_source = "sensor"
     humidity = 0.0
     humidity_source = "sensor"
-    luminosity = 0.0
+    luminosity = None
+    luminosity_source = "sensor"
     white_luminosity = 0.0
     concentration_co2 = 0.0
     concentration_co2_source = "sensor"
@@ -65,7 +68,13 @@ def compute_data(data):
                             humidity = humidity_api
                             humidity_source = humidity_source_api
                     case "luminosity":
-                        luminosity = v
+                        if v is None:
+                            logger.warning(f"Calcul de la luminosité, capteur défaillant.")
+                            light = get_luminosity(lat, lng, timestamp_str, timezone_input)
+                            luminosity = light["luminosity"]
+                            luminosity_source = light["luminosity_source"]
+                        else:
+                            luminosity = v
                     case "white_luminosity":
                         white_luminosity = v
                     case "concentration_co2":
@@ -75,9 +84,6 @@ def compute_data(data):
                             concentration_co2_api, concentration_co2_source_api = get_co2(lat, lng, timestamp_str, timezone_input)
                             concentration_co2 = concentration_co2_api
                             concentration_co2_source = concentration_co2_source_api
-                            # Aller chercher données dans l'API
-                            # Si erreur API, on laisse le fichier dans to_compute
-                            # Avec log qui explique pourquoi il reste dans to_compute : Car pas toutes les données computed, et affiche de l'erreur API ou erreur basique
                     case "latitude":
                         lat = v
                     case "longitude":
@@ -108,6 +114,7 @@ def compute_data(data):
                     "humidity_source": humidity_source,
                     "pressure": get_pressure(lat, lng, formatted_ddmmyyyy, timestamp_utc.hour),
                     "luminosity": luminosity,
+                    "luminosity_source": luminosity_source,
                     "white_luminosity": white_luminosity,
                     "concentration_co2": concentration_co2,
                     "concentration_co2": concentration_co2_source,
