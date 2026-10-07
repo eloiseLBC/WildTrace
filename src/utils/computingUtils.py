@@ -305,6 +305,50 @@ def compute_data(data, get_biological_day=None):
                 biological_data, get_biological_day
             )
             
+            metrics = compute_biological_data(data, get_day)
+
+            # Écrire seulement si au moins un indicateur est calculé.
+            indicators = (
+                "sleep_duration_score",
+                "hrv_change_percent",
+                "stress_score",
+            )
+
+            if not any(metrics.get(key) is not None for key in indicators):
+                logger.info(
+                    f"Aucun indicateur calculable pour {date} : "
+                    "pas de fichier contextualized."
+                )
+                continue
+
+            contextualized = {
+                **data,
+                "source_daily_file": obj.name,
+                "computed_metrics": metrics,
+            }
+
+            destination = (
+                "collected/contextualized/"
+                f"bioligical_contextualized_computing_{date}.json"
+            )
+
+            object_storage.put_object(
+                namespace,
+                biological_bucket,
+                destination,
+                json.dumps(
+                    contextualized,
+                    ensure_ascii=False,
+                    indent=2,
+                    allow_nan=False,
+                ).encode("utf-8"),
+                content_type="application/json",
+            )
+
+            logger.info(
+                f"Fichier biologique contextualisé écrit : {destination}"
+            )
+        
             formatted_ddmmyyyy = get_formatted_ddmmyyyy(timestamp_str)
             row = {
                 "timestamp": timestamp_str,
