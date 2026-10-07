@@ -95,7 +95,42 @@ def upload_to_bucket_single_file(object_storage, namespace, file_path, options):
             logger.error(f"Upload du fichier dans le bucket échoué : {e}")
     
     
-    
+def get_biological_daily(object_storage, namespace, date):
+    """Récupère le JSON biologique du jour, ou None si indisponible."""
+    object_name = f"collected/computed/biological_daily_{date}.json"
+
+    try:
+        response = object_storage.get_object(
+            namespace,
+            "wildtrace-biological",
+            object_name,
+        )
+        try:
+            data = json.loads(
+                response.data.content.decode("utf-8-sig")
+            )
+        finally:
+            response.data.close()
+
+        if not isinstance(data, (dict, list)):
+            raise ValueError("Le JSON doit contenir un objet ou une liste")
+
+        logger.info(f"Fichier biologique trouvé : {object_name}")
+        return data
+
+    except oci.exceptions.ServiceError as exc:
+        if exc.status == 404:
+            logger.warning(f"Fichier biologique absent : {object_name}")
+        else:
+            logger.error(f"Erreur OCI pour {object_name} : {exc}")
+
+    except (ValueError, UnicodeError) as exc:
+        logger.error(f"JSON biologique invalide : {object_name} : {exc}")
+
+    except oci.exceptions.RequestException as exc:
+        logger.warning(f"Connexion OCI indisponible : {exc}")
+
+    return None
         
 
 def computing_collected(options):
@@ -161,7 +196,12 @@ def computing_collected(options):
         try:
             with open(local_input_path, "r", encoding="utf-8-sig") as f:
                 data = json.load(f)
-                computed_json = compute_data(data)
+                computed_json = compute_data(
+                    data,
+                    get_biological_day=lambda date: get_biological_daily(
+                        object_storage, namespace, date
+                    ),
+                )
                 if computed_json == "":
                     logger.info(f"-- Fichier sans timestamp : {file_name}")
                 else:

@@ -63,6 +63,33 @@ def get_city_country(lat: float, lng: float):
         logger.error(f"Request city, country : Invalid Input Error : {ex}")
 
 
+def get_location_coordinates(location):
+    """Récupère latitude, longitude et altitude à partir d'une adresse."""
+    empty = {"latitude": None, "longitude": None, "altitude": None}
+
+    try:
+        results = OCG.geocode(location, language="fr", limit=1)
+
+        if not results:
+            logger.warning(f"Localisation introuvable : {location}")
+            return empty
+
+        result = results[0]
+        latitude = float(result["geometry"]["lat"])
+        longitude = float(result["geometry"]["lng"])
+
+        logger.info(f"Adresse trouvée : {result['formatted']}")
+
+        return {
+            "latitude": latitude,
+            "longitude": longitude,
+            "altitude": get_altitude(latitude, longitude),
+        }
+
+    except Exception as exc:
+        logger.warning(f"Localisation indisponible : {exc}")
+        return empty
+
 def get_altitude(lat, lng, max_retries=2, base_delay=1):
     """
     Détermine l'altitude à l'aide de la latitude et la longitude, avec gestion du retry.
