@@ -25,7 +25,7 @@ def compute_biological_data(biological_data, get_biological_day):
         "hrv_baseline_days": 0,
         "hrv_change_percent": None,
         "stress_score": None,
-        "stress_status": "insufficient_data",
+        "stress_status": "insufficient_data"
     }
 
     def valid_number(value):
@@ -91,16 +91,24 @@ def compute_biological_data(biological_data, get_biological_day):
 
     result["hrv_baseline_days"] = len(historical_hrv)
 
-    # Choix applicatif : au moins 14 jours valides sur les 28 précédents.
+    # Au moins 14 jours valides sur les 28 précédents.
     if len(historical_hrv) >= 14:
         baseline = median(historical_hrv)
         result["hrv_baseline_ms"] = round(baseline, 2)
 
         if valid_number(current_hrv) and current_hrv > 0:
-            result["hrv_change_percent"] = round(
-                (current_hrv - baseline) / baseline * 100, 1
+            change = (current_hrv - baseline) / baseline * 100
+
+            result["hrv_change_percent"] = round(change, 1)
+
+            # Indicateur expérimental : baisse relative de HRV.
+            # Zéro signifie aucune baisse détectée, pas absence de stress.
+            result["stress_score"] = round(
+                min(100, max(0, -change)), 1
             )
-            result["stress_status"] = "not_calibrated"
+            result["stress_status"] = "estimated"
+        else:
+            result["stress_status"] = "missing_current_hrv"
 
     return result
 
