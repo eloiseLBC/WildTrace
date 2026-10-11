@@ -1,4 +1,4 @@
-"""Jointure quotidienne des données calculées, sans modifier les sources."""
+"""Jointure quotidienne et archivage des sources entièrement contextualisées."""
 import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -87,6 +87,7 @@ def contextualize():
 
     days = {}
     file_days = {}
+    source_etags = {}
     unreadable_files = False
     start = None
     while True:
@@ -98,7 +99,8 @@ def contextualize():
         ).data
 
         for obj in page.objects:
-            if not obj.name.endswith(".json"):
+            if (not obj.name.endswith(".json")
+                    or obj.name.startswith("collected/computed/archives/")):
                 continue
             if obj.name in processed_files:
                 logger.info(f"Source déjà contextualisée : {obj.name}")
@@ -109,6 +111,7 @@ def contextualize():
                 )
                 try:
                     rows = json.loads(response.data.content.decode("utf-8-sig"))
+                    source_etags[obj.name] = response.headers["etag"]
                 finally:
                     response.data.close()
                 if isinstance(rows, dict):
@@ -169,6 +172,7 @@ def contextualize():
                 content_type="application/json",
                 if_none_match="*",
             )
+            existing_days.add(date)
             logger.info(f"Fichier contextualisé enregistré : {name}")
         except (oci.exceptions.ServiceError, oci.exceptions.RequestException,
                 ValueError, TypeError) as exc:
@@ -176,3 +180,39 @@ def contextualize():
                 logger.info(f"Fichier déjà présent, conservé : {name}")
                 continue
             logger.error(f"Contextualisation échouée pour {date} : {exc}")
+
+    # Déplacer uniquement les sources dont tous les jours ont une sortie persistée.
+    # Attendre la fin de la pagination avant de modifier les noms des objets.
+    processed_files.update(
+        name for name, dates in file_days.items()
+        if dates and dates <= existing_days
+    )
+    for source_name in sorted(processed_files):
+        prefix = "collected/computed/"
+        archive_prefix = prefix + "archives/"
+        if (not source_name.startswith(prefix)
+                or source_name.startswith(archive_prefix)
+                or not source_name.endswith(".json")):
+            continue
+        archive_name = archive_prefix + source_name[len(prefix):]
+        try:
+            etag = source_etags.get(source_name)
+            if etag is None:
+                etag = object_storage.head_object(
+                    namespace, environmental_bucket, source_name
+                ).headers["etag"]
+            object_storage.rename_object(
+                namespace, environmental_bucket,
+                oci.object_storage.models.RenameObjectDetails(
+                    source_name=source_name,
+                    new_name=archive_name,
+                    src_obj_if_match_e_tag=etag,
+                    new_obj_if_none_match_e_tag="*",
+                ),
+            )
+            logger.info(f"Source contextualisée archivée : {archive_name}")
+        except (oci.exceptions.ServiceError, oci.exceptions.RequestException) as exc:
+            if isinstance(exc, oci.exceptions.ServiceError) and exc.status == 404:
+                logger.info(f"Source déjà déplacée ou absente : {source_name}")
+                continue
+            logger.error(f"Archivage échoué pour {source_name} : {exc}")
