@@ -83,9 +83,15 @@ class GpsFallbackCase(unittest.TestCase):
         self.biological = {"date": "2026-10-12", "city_country": {"city": "Lyon", "country": "France"}}
 
     def run_compute(self, previous=(), bio=None, row=None):
+        def stamp(document):
+            if isinstance(document, list):
+                return [stamp(item) for item in document]
+            if isinstance(document, dict) and not ("timestamp" in document or "local_timestamp" in document):
+                return {**document, "timestamp": "2026-10-11 12:00:00"}
+            return document
         return self.compute.compute_data(
             [self.row if row is None else row],
-            get_previous_files=lambda: iter(previous),
+            get_previous_files=lambda: iter(stamp(doc) for doc in previous),
             get_biological_day=lambda d: bio if d == "2026-10-12" else None,
         )
 
@@ -100,18 +106,44 @@ class GpsFallbackCase(unittest.TestCase):
         self.gps.get_location_coordinates.assert_not_called()
         self.compute.get_altitude.assert_not_called()
 
-    def test_fifth_file_is_considered(self):
+    def test_fifth_file_in_previous_days_is_considered(self):
         result = self.run_compute([None] * 4 + [
             {"latitude": 43.7, "longitude": 7.2, "altitude": 12}
         ], self.biological)
         self.assertEqual(result[0]["latitude"], 43.7)
         self.gps.get_location_coordinates.assert_not_called()
 
-    def test_sixth_file_is_excluded(self):
-        self.run_compute([None] * 5 + [
+    def test_more_than_five_files_in_window_are_considered(self):
+        result = self.run_compute([None] * 5 + [
             {"latitude": 43.7, "longitude": 7.2, "altitude": 12}
         ], self.biological)
-        self.gps.get_location_coordinates.assert_called_once_with("Lyon, France")
+        self.assertEqual(result[0]["latitude"], 43.7)
+        self.gps.get_location_coordinates.assert_not_called()
+
+    def test_j_minus_five_included_j_minus_six_excluded(self):
+        for day, expected in (("2026-10-07", 43.7), ("2026-10-06", 48.8)):
+            self.gps.get_location_coordinates.reset_mock()
+            result = self.run_compute([{
+                "timestamp": day + " 23:59:00", "latitude": 43.7,
+                "longitude": 7.2, "altitude": 12,
+            }], self.biological)
+            self.assertEqual(result[0]["latitude"], expected)
+            if expected == 48.8:
+                self.gps.get_location_coordinates.assert_called_once_with("Lyon, France")
+
+    def test_today_and_future_are_excluded(self):
+        result = self.run_compute([
+            {"timestamp": "2026-10-12 01:00:00", "latitude": 10, "longitude": 20, "altitude": 12},
+            {"timestamp": "2026-10-13 01:00:00", "latitude": 11, "longitude": 21, "altitude": 12},
+        ], self.biological)
+        self.assertEqual(result[0]["latitude"], 48.8)
+
+    def test_history_uses_latest_measurement_not_file_order(self):
+        result = self.run_compute([
+            {"timestamp": "2026-10-07 20:00:00", "latitude": 10, "longitude": 20, "altitude": 12},
+            {"timestamp": "2026-10-11 01:00:00", "latitude": 11, "longitude": 21, "altitude": 12},
+        ], self.biological)
+        self.assertEqual(result[0]["latitude"], 11)
 
     def test_incomplete_position_uses_older_file(self):
         result = self.run_compute([
@@ -193,7 +225,7 @@ class GpsFallbackCase(unittest.TestCase):
         self.assertEqual([r["gps_coordinates"] for r in result], ["computed", "sensor"])
         self.assertEqual(result[1]["latitude_source"], "sensor")
 
-    def test_history_pagination_archives_limit_and_no_future_files(self):
+    def test_history_pagination_includes_all_sources_for_json_date_filter(self):
         ns = types.SimpleNamespace
         current = ns(name="collected/to_compute/collect_12-10-2026-12-00-00.json")
         names = [f"collected/computed/archives/collect_{d:02}-10-2026-12-00-00.json"
@@ -211,8 +243,8 @@ class GpsFallbackCase(unittest.TestCase):
         client.get_object.side_effect = lambda n, b, key: ns(data=ns(
             content=json.dumps({"name": key}).encode(), close=Mock()))
         result = list(self.history.previous_environmental_files(client, "ns", "bucket", current))
-        self.assertEqual([r["name"] for r in result], list(reversed(names[6:11])))
-        self.assertEqual(client.get_object.call_count, 5)
+        self.assertEqual([r["name"] for r in result], [n for n in reversed(names) if n.rsplit("/", 1)[-1] != current.name.rsplit("/", 1)[-1]])
+        self.assertEqual(client.get_object.call_count, 12)
 
     def backfill_client(self, documents):
         import io

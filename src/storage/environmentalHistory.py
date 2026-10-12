@@ -1,4 +1,4 @@
-"""Historique des cinq fichiers environnementaux précédant la source courante."""
+"""Sources environnementales pour rechercher les cinq jours précédents."""
 import json
 import re
 from datetime import datetime, timezone
@@ -48,9 +48,9 @@ def previous_environmental_files(client, namespace, bucket, current):
     current_name = current.name.rsplit("/", 1)[-1]
     previous = sorted(
         (obj for name, obj in objects.items()
-         if name != current_name and file_order(obj) < file_order(current)),
+         if name != current_name),
         key=file_order, reverse=True,
-    )[:5]
+    )
     for obj in previous:
         try:
             response = client.get_object(namespace, bucket, obj.name)
@@ -61,5 +61,4 @@ def previous_environmental_files(client, namespace, bucket, current):
         except (oci.exceptions.ServiceError, oci.exceptions.RequestException,
                 ValueError, UnicodeError) as exc:
             logger.warning(f"Historique environnemental illisible : {obj.name} : {exc}")
-            # Une erreur compte quand même parmi les cinq fichiers précédents.
             yield None

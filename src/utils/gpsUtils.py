@@ -1,7 +1,8 @@
 """Résolution des coordonnées avant tout calcul environnemental."""
 import math
 import json
-from itertools import islice
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from functools import lru_cache
 
@@ -56,33 +57,59 @@ def resolve_gps(row, previous_files, load_biological):
         return {"latitude": latitude, "longitude": longitude,
                 "gps_coordinates": "computed" if row.get("reconstruction") else "sensor"}
 
-    # Reprendre une position complète directement, sans ville/pays ni géocodage.
-    for document in islice(previous_files(), 5):
-        rows = document if isinstance(document, list) else [document]
-        for previous in reversed(rows):
-            if not isinstance(previous, dict):
-                continue
-            previous_lat = previous.get("latitude")
-            previous_lng = previous.get("longitude")
-            previous_altitude = previous.get("altitude")
-            if previous_altitude is None:
-                previous_altitude = previous.get("altitude_m")
-            if (valid_coordinate(previous_lat, 90)
-                    and valid_coordinate(previous_lng, 180)
-                    and isinstance(previous_altitude, (int, float))
-                    and not isinstance(previous_altitude, bool)
-                    and math.isfinite(previous_altitude)):
-                logger.info(
-                    "Coordonnées GPS reprises d'un fichier environnemental précédent : "
-                    f"latitude={previous_lat}, longitude={previous_lng}, "
-                    f"altitude={previous_altitude}"
-                )
-                return {
-                    "latitude": latitude if latitude_valid else previous_lat,
-                    "longitude": longitude if longitude_valid else previous_lng,
-                    "altitude": previous_altitude,
-                    "gps_coordinates": "computed",
-                }
+    def measurement_time(measurement):
+        timestamp = measurement.get("local_timestamp") or measurement.get("timestamp")
+        try:
+            date = datetime.fromisoformat(timestamp)
+        except ValueError:
+            date = datetime.strptime(timestamp, "%d-%m-%Y %H:%M:%S")
+        if date.tzinfo is not None:
+            zone = measurement.get("timezone") or row.get("timezone")
+            if not zone:
+                raise ValueError("Timezone absent pour déterminer le jour local")
+            date = date.astimezone(ZoneInfo(zone))
+        return date.replace(tzinfo=None)
+
+    # Comparer les dates des mesures JSON, pas les noms ni les dates d'upload.
+    candidates_from_history = []
+    try:
+        current_day = measurement_time(row).date()
+        first_day = current_day - timedelta(days=5)
+        for document in previous_files():
+            rows = document if isinstance(document, list) else [document]
+            for previous in rows:
+                if not isinstance(previous, dict):
+                    continue
+                try:
+                    date = measurement_time(previous)
+                except (ValueError, TypeError, LookupError):
+                    continue
+                if first_day <= date.date() < current_day:
+                    candidates_from_history.append((date, previous))
+    except (ValueError, TypeError, LookupError) as exc:
+        logger.debug(f"Recherche des cinq jours précédents impossible : {exc}")
+    for date, previous in sorted(candidates_from_history, key=lambda item: item[0], reverse=True):
+        previous_lat = previous.get("latitude")
+        previous_lng = previous.get("longitude")
+        previous_altitude = previous.get("altitude")
+        if previous_altitude is None:
+            previous_altitude = previous.get("altitude_m")
+        if (valid_coordinate(previous_lat, 90)
+                and valid_coordinate(previous_lng, 180)
+                and isinstance(previous_altitude, (int, float))
+                and not isinstance(previous_altitude, bool)
+                and math.isfinite(previous_altitude)):
+            logger.info(
+                f"Coordonnées GPS reprises du {date.date().isoformat()} (J−5 à J−1) : "
+                f"latitude={previous_lat}, longitude={previous_lng}, "
+                f"altitude={previous_altitude}"
+            )
+            return {
+                "latitude": latitude if latitude_valid else previous_lat,
+                "longitude": longitude if longitude_valid else previous_lng,
+                "altitude": previous_altitude,
+                "gps_coordinates": "computed",
+            }
 
     def candidates():
         address = location_address(load_biological())
@@ -105,7 +132,7 @@ def resolve_gps(row, previous_files, load_biological):
             }
     logger.warning(
         "Coordonnées GPS indisponibles : aucun repli exploitable "
-        "(5 fichiers précédents, biologique, timezone). "
+        "(5 jours précédents, biologique, timezone). "
         "Le fichier reste dans collected/to_compute."
     )
     return None
