@@ -9,6 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 from utils.loggerUtils import logger, log_file, timestamp_str
 from utils.computingUtils import compute_data, compute_biological_data
 from utils.writeUtils import write_json
+from utils.environmentalPolicy import BIOLOGICAL_START_DAY
 from storage.environmentalBackfill import backfill_environmental_days
 from storage.environmentalHistory import (
     file_order, list_environmental_objects, previous_environmental_files,
@@ -114,8 +115,8 @@ def computing_biological(object_storage, namespace):
             )
         return cache[date]
 
-    # Parcourir toutes les pages de fichiers du bucket.
-    start = None
+    # Commencer directement à la limite dans le listing OCI, sans lire septembre.
+    start = prefix + BIOLOGICAL_START_DAY
 
     while True:
         params = {"prefix": prefix}
@@ -129,7 +130,8 @@ def computing_biological(object_storage, namespace):
         for obj in page.objects:
             date = obj.name[len(prefix):-5]
 
-            if not obj.name.endswith(".json") or "/" in date:
+            if (not obj.name.endswith(".json") or "/" in date
+                    or date < BIOLOGICAL_START_DAY):
                 continue
 
             try:
@@ -190,6 +192,8 @@ def computing_biological(object_storage, namespace):
         
 def get_biological_daily(object_storage, namespace, date):
     """Récupère le JSON biologique du jour, ou None si indisponible."""
+    if date < BIOLOGICAL_START_DAY:
+        return None
     object_name = f"collected/computed/biological_daily_{date}.json"
 
     try:

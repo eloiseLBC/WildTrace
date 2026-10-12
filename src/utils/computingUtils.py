@@ -63,7 +63,7 @@ def compute_biological_data(biological_data, get_biological_day):
     historical_hrv = []
 
     # Uniquement les jours précédents : exclure le jour calculé.
-    first_watch_date = datetime(2026, 2, 1).date()
+    first_watch_date = datetime.strptime(BIOLOGICAL_START_DAY, "%Y-%m-%d").date()
 
     for offset in range(1, 29):
         previous_day = (date - timedelta(days=offset)).date()
@@ -113,7 +113,7 @@ def compute_biological_data(biological_data, get_biological_day):
     return result
 
 from .gpsUtils import resolve_gps
-from .environmentalPolicy import ENVIRONMENTAL_START_DAY, environmental_day
+from .environmentalPolicy import ENVIRONMENTAL_START_DAY, BIOLOGICAL_START_DAY, environmental_day
 
 
 def compute_data(data, get_biological_day=None, get_previous_files=None, source_file=None):

@@ -3,6 +3,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 ENVIRONMENTAL_START_DAY = "2026-10-01"
+BIOLOGICAL_START_DAY = "2026-10-01"
 
 
 def environmental_day(row):

@@ -57,6 +57,8 @@ class GpsFallbackCase(unittest.TestCase):
         self.addCleanup(self.context.stop)
         self.gps = load_module("utils.gpsUtils", "src/utils/gpsUtils.py")
         sys.modules["utils.gpsUtils"] = self.gps
+        self.policy = load_module("utils.environmentalPolicy", "src/utils/environmentalPolicy.py")
+        sys.modules["utils.environmentalPolicy"] = self.policy
         self.compute = load_module("utils.computingUtils", "src/utils/computingUtils.py")
         self.history = load_module("storage.environmentalHistory", "src/storage/environmentalHistory.py")
         sys.modules["storage.environmentalHistory"] = self.history
@@ -165,6 +167,19 @@ class GpsFallbackCase(unittest.TestCase):
     def test_city_country_without_coordinates_does_not_geocode_history(self):
         self.run_compute([{"city": "Nice", "country": "France"}], self.biological)
         self.gps.get_location_coordinates.assert_called_once_with("Lyon, France")
+
+    def test_biological_history_stops_at_october_first(self):
+        read = Mock(return_value=None)
+        self.compute.compute_biological_data({
+            "date": "2026-10-06", "summary": {"hrv_avg_ms": 30},
+        }, read)
+        self.assertEqual(read.call_count, 5)
+        self.assertTrue(all(call.args[0] >= "2026-10-01" for call in read.call_args_list))
+        read.reset_mock()
+        self.compute.compute_biological_data({
+            "date": "2026-10-01", "summary": {"hrv_avg_ms": 30},
+        }, read)
+        read.assert_not_called()
 
     def test_biological_day(self):
         self.run_compute(bio=self.biological)
