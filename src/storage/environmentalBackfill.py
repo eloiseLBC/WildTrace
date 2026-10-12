@@ -9,6 +9,7 @@ from storage.environmentalHistory import list_environmental_objects
 from utils.geoUtils import get_location_coordinates
 from utils.gpsUtils import location_address, valid_coordinate
 from utils.loggerUtils import logger
+from utils.environmentalPolicy import ENVIRONMENTAL_START_DAY
 
 
 def row_day(row):
@@ -54,7 +55,7 @@ def backfill_environmental_days(client, namespace, biological_days):
     skipped_locations = 0
     deferred = 0
     for day, biological in sorted(biological_days.items()):
-        if day in existing_days:
+        if day < ENVIRONMENTAL_START_DAY or day in existing_days:
             continue
         name = f"collected/to_compute/environmental_daily_{day}.json"
         try:

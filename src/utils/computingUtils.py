@@ -113,10 +113,23 @@ def compute_biological_data(biological_data, get_biological_day):
     return result
 
 from .gpsUtils import resolve_gps
+from .environmentalPolicy import ENVIRONMENTAL_START_DAY, environmental_day
 
 
 def compute_data(data, get_biological_day=None, get_previous_files=None, source_file=None):
     # Initialisation des variables
+    # Vérifier tout le fichier avant le moindre calcul, y compris les fichiers
+    # qui contiennent des mesures de part et d'autre de la limite.
+    try:
+        if any(environmental_day(row) < ENVIRONMENTAL_START_DAY for row in data):
+            logger.info(
+                f"Fichier environnemental ignoré : mesure antérieure au "
+                f"{ENVIRONMENTAL_START_DAY} ; conservé dans to_compute."
+            )
+            return ""
+    except (ValueError, TypeError, KeyError, LookupError, AttributeError) as exc:
+        logger.warning(f"Date environnementale invalide : fichier conservé : {exc}")
+        return ""
     json_object = []
     matched_days = set()
     missing_days = set()
