@@ -59,10 +59,14 @@ class GpsFallbackCase(unittest.TestCase):
         sys.modules["utils.gpsUtils"] = self.gps
         self.compute = load_module("utils.computingUtils", "src/utils/computingUtils.py")
         self.history = load_module("storage.environmentalHistory", "src/storage/environmentalHistory.py")
+        sys.modules["storage.environmentalHistory"] = self.history
+        self.backfill = load_module("storage.environmentalBackfill", "src/storage/environmentalBackfill.py")
+        sys.modules["storage.environmentalBackfill"] = self.backfill
         self.gps.get_location_coordinates.return_value = {
             "latitude": 48.8, "longitude": 2.3, "altitude": 50,
         }
         self.compute.get_altitude.return_value = 50
+        self.compute.get_pressure.return_value = 1000
         self.compute.get_city_country.return_value = {"city": "Paris", "country": "France"}
         self.compute.get_temperature_humidity.return_value = (20, "api", 60, "api")
         self.compute.get_co2.return_value = (420, "api")
@@ -210,6 +214,135 @@ class GpsFallbackCase(unittest.TestCase):
         self.assertEqual([r["name"] for r in result], list(reversed(names[6:11])))
         self.assertEqual(client.get_object.call_count, 5)
 
+    def backfill_client(self, documents):
+        import io
+        ns = types.SimpleNamespace
+        client = Mock()
+        client.list_objects.side_effect = lambda n, b, **kw: ns(data=ns(
+            objects=[ns(name=name) for name in documents if name.startswith(kw["prefix"])],
+            next_start_with=None))
+        client.get_object.side_effect = lambda n, b, name: ns(
+            data=ns(content=json.dumps(documents[name]).encode(), close=Mock(),
+                    raw=io.BytesIO(json.dumps(documents[name]).encode())),
+            headers={"etag": "v1"})
+        def put(n, b, name, payload, **kw):
+            if hasattr(payload, "read"):
+                payload = payload.read()
+            documents[name] = json.loads(payload)
+        client.put_object.side_effect = put
+        return client
+
+    def test_backfill_missing_day_at_local_noon(self):
+        docs = {}
+        client = self.backfill_client(docs)
+        bio = {**self.biological, "timezone": "Europe/Paris"}
+        self.backfill.backfill_environmental_days(client, "ns", {"2026-10-12": bio})
+        name = "collected/to_compute/environmental_daily_2026-10-12.json"
+        row = docs[name][0]
+        self.assertEqual(row["local_timestamp"], "2026-10-12 12:00:00")
+        self.assertEqual(row["latitude"], 48.8)
+        self.assertEqual(row["gps_coordinates"], "computed")
+        self.assertEqual(row["city_country"], bio["city_country"])
+        self.assertEqual(client.put_object.call_args.kwargs["if_none_match"], "*")
+
+    def test_backfill_counts_archived_and_pending_days_and_is_idempotent(self):
+        for prefix in ("collected/computed/archives/", "collected/computed/", "collected/to_compute/"):
+            docs = {prefix + "source.json": [{"timestamp": "2026-10-12 07:00:00"}]}
+            client = self.backfill_client(docs)
+            self.backfill.backfill_environmental_days(client, "ns", {"2026-10-12": self.biological})
+            client.put_object.assert_not_called()
+        docs = {}
+        client = self.backfill_client(docs)
+        bio = {**self.biological, "timezone": "Europe/Paris"}
+        self.backfill.backfill_environmental_days(client, "ns", {"2026-10-12": bio})
+        self.backfill.backfill_environmental_days(client, "ns", {"2026-10-12": bio})
+        self.assertEqual(client.put_object.call_count, 1)
+
+    def test_backfill_checks_json_dates_not_filename(self):
+        docs = {"collected/computed/source_01-01-2000.json": [
+            {"timestamp": "2026-10-11 07:00:00"}, {"timestamp": "2026-10-12 07:00:00"}]}
+        client = self.backfill_client(docs)
+        self.backfill.backfill_environmental_days(client, "ns", {
+            "2026-10-11": {**self.biological, "date": "2026-10-11"},
+            "2026-10-12": self.biological})
+        client.put_object.assert_not_called()
+
+    def test_backfill_requires_city_country_and_timezone(self):
+        for bio in (self.biological,
+                    {**self.biological, "timezone": "Europe/Paris", "city_country": {}},
+                    {**self.biological, "timezone": "Invalid/Zone"}):
+            client = self.backfill_client({})
+            self.backfill.backfill_environmental_days(client, "ns", {"2026-10-12": bio})
+            client.put_object.assert_not_called()
+
+    def test_backfill_stops_on_unreadable_environmental_file(self):
+        client = self.backfill_client({"collected/computed/source.json": "invalid"})
+        self.backfill.backfill_environmental_days(client, "ns", {
+            "2026-10-12": {**self.biological, "timezone": "Europe/Paris"}})
+        client.put_object.assert_not_called()
+
+    def test_reconstructed_unavailable_weather_is_null_and_not_sensor(self):
+        self.row["reconstruction"] = {"sampling": "local_noon"}
+        self.row.update(latitude=48.8, longitude=2.3, temperature=None,
+                        humidity=None, concentration_co2=None, luminosity=None)
+        self.compute.get_temperature_humidity.return_value = None
+        self.compute.get_co2.return_value = None
+        self.compute.get_luminosity.return_value = {"luminosity": None, "luminosity_source": None}
+        result = self.run_compute(bio=self.biological)[0]
+        self.assertIsNone(result["temperature"])
+        self.assertIsNone(result["concentration_co2"])
+        self.assertEqual(result["gps_coordinates"], "computed")
+        self.assertEqual(result["latitude_source"], "computed")
+        self.assertEqual(result["reconstruction"]["sampling"], "local_noon")
+
+    def test_pressure_uses_requested_historical_city_and_hour(self):
+        import ast
+        import math
+        source = ast.parse((ROOT / "src/utils/geoUtils.py").read_text())
+        function = next(n for n in source.body if isinstance(n, ast.FunctionDef) and n.name == "get_pressure")
+        request = Mock()
+        request.RequestException = RequestException
+        request.get.return_value.json.return_value = {"hourly": {
+            "time": ["2026-10-12T11:00", "2026-10-12T12:00"],
+            "surface_pressure": [1000, 1001]}}
+        env = {"requests": request, "math": math, "logger": Mock()}
+        exec(compile(ast.Module(body=[function], type_ignores=[]), "geoUtils.py", "exec"), env)
+        self.assertEqual(env["get_pressure"](48.8, 2.3, "2026-10-12", 12, "Europe/Paris"), 1001)
+        params = request.get.call_args.kwargs["params"]
+        self.assertEqual((params["latitude"], params["longitude"]), (48.8, 2.3))
+        self.assertEqual(params["timezone"], "Europe/Paris")
+        self.assertIn("archive-api", request.get.call_args.args[0])
+
+    def test_backfill_runs_without_existing_to_compute_files_and_uploads_computed(self):
+        sys.modules["utils.computingUtils"] = self.compute
+        writer = types.ModuleType("utils.writeUtils")
+        secrets = types.ModuleType("my_secrets.secrets")
+        with tempfile.TemporaryDirectory() as directory:
+            for field in ("config_oci_path", "computed_data_dir_to_send", "collected_uploaded_data_dir",
+                          "tmp_to_compute_dir", "computed_data_dir_uploaded"):
+                path = Path(directory) / field
+                path.mkdir()
+                setattr(secrets, field, str(path))
+            writer.write_json = lambda data, stamp, options, name: (
+                Path(secrets.computed_data_dir_to_send) / name
+            ).write_text(json.dumps(data))
+            with patch.dict(sys.modules, {"utils.writeUtils": writer, "my_secrets.secrets": secrets}):
+                bucket = load_module("storage.bucket", "src/storage/bucket.py")
+            docs = {}
+            client = self.backfill_client(docs)
+            client.delete_object.side_effect = lambda n, b, key: docs.pop(key)
+            bucket.connect_to_bucket = lambda: (client, "ns")
+            bio = {**self.biological, "timezone": "Europe/Paris", "summary": {"steps_total": 500}}
+            bucket.computing_biological = Mock(return_value={"2026-10-12": bio})
+            bucket.get_biological_daily = lambda *args: bio if args[-1] == "2026-10-12" else None
+            bucket.computing_collected(types.SimpleNamespace(computed=True))
+            name = "collected/computed/environmental_daily_2026-10-12.json"
+            self.assertIn(name, docs)
+            self.assertNotIn(name.replace("/computed/", "/to_compute/"), docs)
+            self.assertEqual(docs[name][0]["gps_coordinates"], "computed")
+            self.assertEqual(docs[name][0]["biological"]["summary"]["steps_total"], 500)
+            self.assertEqual(docs[name][0]["timestamp"], "2026-10-12 12:00:00")
+
     def test_compute_dispatch_uploads_only_when_gps_resolved(self):
         sys.modules["utils.computingUtils"] = self.compute
         sys.modules["storage.environmentalHistory"] = self.history
@@ -229,7 +362,7 @@ class GpsFallbackCase(unittest.TestCase):
                 objects=[types.SimpleNamespace(name="collected/to_compute/" + name)],
                 next_start_with=None))
             bucket.connect_to_bucket = lambda: (client, "ns")
-            bucket.computing_biological = Mock()
+            bucket.computing_biological = Mock(return_value={})
             bucket.get_biological_daily = lambda *args: None
             bucket.previous_environmental_files = lambda *args: iter([])
             bucket.upload_to_bucket_single_file = Mock()

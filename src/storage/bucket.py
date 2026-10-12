@@ -9,6 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 from utils.loggerUtils import logger, log_file, timestamp_str
 from utils.computingUtils import compute_data, compute_biological_data
 from utils.writeUtils import write_json
+from storage.environmentalBackfill import backfill_environmental_days
 from storage.environmentalHistory import (
     file_order, list_environmental_objects, previous_environmental_files,
 )
@@ -102,6 +103,7 @@ def computing_biological(object_storage, namespace):
     biological_bucket = "wildtrace-biological"
     prefix = "collected/computed/biological_daily_"
     cache = {}
+    daily_documents = {}
     today = datetime.now().date()
     first_recent_day = (today - timedelta(days=5)).isoformat()
 
@@ -148,6 +150,7 @@ def computing_biological(object_storage, namespace):
                     continue
 
                 cache[date] = data
+                daily_documents[date] = data
                 metrics = compute_biological_data(data, get_day)
 
                 # Conserver les données existantes et ajouter les indicateurs.
@@ -171,6 +174,7 @@ def computing_biological(object_storage, namespace):
                 )
 
                 cache[date] = enriched
+                daily_documents[date] = enriched
                 logger.info(f"Calcul biologique enregistré : {obj.name}")
 
             except Exception as exc:
@@ -181,6 +185,7 @@ def computing_biological(object_storage, namespace):
         start = page.next_start_with
         if not start:
             break
+    return daily_documents
         
         
 def get_biological_daily(object_storage, namespace, date):
@@ -224,7 +229,8 @@ def get_biological_daily(object_storage, namespace, date):
 def computing_collected(options):
     object_storage, namespace = connect_to_bucket()
     
-    computing_biological(object_storage, namespace)
+    biological_days = computing_biological(object_storage, namespace)
+    backfill_environmental_days(object_storage, namespace, biological_days)
 
     bucket_path = "collected/to_compute"
     objects = sorted(list_environmental_objects(

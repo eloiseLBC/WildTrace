@@ -125,7 +125,8 @@ def compute_data(data, get_biological_day=None, get_previous_files=None):
                 row.setdefault(field, None)
             white_luminosity = row.get("white_luminosity")
             # Les valeurs et les sources appartiennent à une mesure, pas au fichier.
-            lat_source = lng_source = altitude_source = "sensor"
+            reconstructed = bool(row.get("reconstruction"))
+            lat_source = lng_source = altitude_source = "computed" if reconstructed else "sensor"
             temperature_source = humidity_source = concentration_co2_source = "sensor"
             luminosity_source = "sensor"
             moods = row.get("moods", [])
@@ -190,8 +191,8 @@ def compute_data(data, get_biological_day=None, get_previous_files=None):
             if position is None:
                 return ""
             lat, lng = position["latitude"], position["longitude"]
-            lat_source = "sensor" if lat == row.get("latitude") else "computed"
-            lng_source = "sensor" if lng == row.get("longitude") else "computed"
+            lat_source = "sensor" if not reconstructed and lat == row.get("latitude") else "computed"
+            lng_source = "sensor" if not reconstructed and lng == row.get("longitude") else "computed"
             if altitude is None:
                 altitude = position.get("altitude")
                 if altitude is None:
@@ -202,6 +203,7 @@ def compute_data(data, get_biological_day=None, get_previous_files=None):
             if row.get("temperature") is None or row.get("humidity") is None:
                 temperature_api, temperature_source_api, humidity_api, humidity_source_api = (
                     get_temperature_humidity(lat, lng, timestamp_str, timezone_input)
+                    or (None, None, None, None)
                 )
             for k, v in row.items():
                 match k:
@@ -235,7 +237,10 @@ def compute_data(data, get_biological_day=None, get_previous_files=None):
                         if v is not None:
                             concentration_co2 = v
                         else:
-                            (concentration_co2_api, concentration_co2_source_api) = get_co2(lat, lng, timestamp_str, timezone_input)
+                            concentration_co2_api, concentration_co2_source_api = (
+                                get_co2(lat, lng, timestamp_str, timezone_input)
+                                or (None, None)
+                            )
                             concentration_co2 = concentration_co2_api
                             concentration_co2_source = concentration_co2_source_api
 
@@ -250,11 +255,16 @@ def compute_data(data, get_biological_day=None, get_previous_files=None):
                 return ""
 
             if any(value is None for value in (lat, lng, altitude, temperature, humidity, concentration_co2, luminosity,)):
+                if not reconstructed:
+                    logger.warning(
+                        "Donnée manquante après fallback. "
+                        "Le fichier reste dans collected/to_compute."
+                    )
+                    return ""
                 logger.warning(
-                    "Donnée manquante après fallback. "
-                    "Le fichier reste dans collected/to_compute."
+                    f"Reconstruction partielle pour {timestamp_str} : "
+                    "les données indisponibles restent à null."
                 )
-                return ""
             
             # Charger le fichier même si les coordonnées capteur sont présentes.
             biological_data = load_biological_day()
@@ -277,7 +287,8 @@ def compute_data(data, get_biological_day=None, get_previous_files=None):
                 "humidity": humidity,
                 "humidity_source": humidity_source,
                 "pressure": get_pressure(
-                    lat, lng, formatted_ddmmyyyy, timestamp_utc.hour
+                    lat, lng, formatted_ddmmyyyy, timestamp_utc.hour,
+                    timezone_name=timezone_input or "UTC",
                 ),
                 "luminosity": luminosity,
                 "luminosity_source": luminosity_source,
@@ -306,6 +317,13 @@ def compute_data(data, get_biological_day=None, get_previous_files=None):
                 },
             }
 
+            if reconstructed:
+                row["reconstruction"] = data[len(json_object)]["reconstruction"]
+                row["biological"]["summary"] = (biological_data or {}).get("summary", {})
+                location = (biological_data or {}).get("city_country") or {}
+                for field in ("city", "country", "formatted_address", "aquatic_location"):
+                    if field in location:
+                        row[field] = location[field]
             logger.info(f"--------------- Computed row --------------- : \n{row}")
             json_object.append(row)
 

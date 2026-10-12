@@ -54,7 +54,7 @@ def resolve_gps(row, previous_files, load_biological):
     longitude_valid = valid_coordinate(longitude, 180)
     if latitude_valid and longitude_valid:
         return {"latitude": latitude, "longitude": longitude,
-                "gps_coordinates": "sensor"}
+                "gps_coordinates": "computed" if row.get("reconstruction") else "sensor"}
 
     # Reprendre une position complète directement, sans ville/pays ni géocodage.
     for document in islice(previous_files(), 5):
