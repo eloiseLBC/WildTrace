@@ -343,6 +343,37 @@ class GpsFallbackCase(unittest.TestCase):
             self.assertEqual(docs[name][0]["biological"]["summary"]["steps_total"], 500)
             self.assertEqual(docs[name][0]["timestamp"], "2026-10-12 12:00:00")
 
+    def test_biological_logs_only_matching_day_and_final_source(self):
+        self.row.update(latitude=1, longitude=2)
+        bio = {**self.biological, "summary": {"hrv_avg_ms": 30}}
+        self.compute.compute_data(
+            [self.row, self.row], get_biological_day=lambda d: bio,
+            source_file="collected/to_compute/current.json",
+        )
+        messages = [call.args[0] for call in self.gps.logger.info.call_args_list]
+        matches = [m for m in messages if m.startswith("Correspondance biologique")]
+        final = [m for m in messages if m.startswith("Date 2026-10-12 retrouvée")]
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(len(final), 1)
+        self.assertIn("collected/to_compute/current.json", final[0])
+        self.assertIn("biological_daily_2026-10-12.json", final[0])
+        self.assertFalse(any("Fichier biologique trouvé" in m for m in messages))
+
+    def test_wrong_date_never_logs_match(self):
+        self.run_compute(bio={**self.biological, "date": "2026-10-11"})
+        messages = [call.args[0] for call in self.gps.logger.info.call_args_list]
+        self.assertFalse(any(m.startswith("Correspondance biologique") or
+                             m.startswith("Date ") for m in messages))
+
+    def test_missing_city_logs_one_summary_not_each_day(self):
+        days = {f"2026-02-{d:02}": {"date": f"2026-02-{d:02}", "city_country": {}}
+                for d in range(1, 29)}
+        self.backfill.backfill_environmental_days(self.backfill_client({}), "ns", days)
+        self.gps.logger.warning.assert_not_called()
+        messages = [call.args[0] for call in self.gps.logger.info.call_args_list]
+        self.assertEqual(len(messages), 1)
+        self.assertIn("28 jour(s)", messages[0])
+
     def test_compute_dispatch_uploads_only_when_gps_resolved(self):
         sys.modules["utils.computingUtils"] = self.compute
         sys.modules["storage.environmentalHistory"] = self.history

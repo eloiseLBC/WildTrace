@@ -115,9 +115,11 @@ def compute_biological_data(biological_data, get_biological_day):
 from .gpsUtils import resolve_gps
 
 
-def compute_data(data, get_biological_day=None, get_previous_files=None):
+def compute_data(data, get_biological_day=None, get_previous_files=None, source_file=None):
     # Initialisation des variables
     json_object = []
+    matched_days = set()
+    missing_days = set()
     try:
         for row in data:
             row = dict(row)
@@ -180,6 +182,19 @@ def compute_data(data, get_biological_day=None, get_previous_files=None):
                         if (not isinstance(biological_data, dict)
                                 or biological_data.get("date") != day):
                             biological_data = None
+                            if day not in missing_days:
+                                logger.warning(
+                                    f"Aucun fichier biologique pour la date {day} "
+                                    f"du fichier environnemental {source_file or '(source en mémoire)'}."
+                                )
+                                missing_days.add(day)
+                        elif day not in matched_days:
+                            logger.info(
+                                f"Correspondance biologique pour la date {day} du fichier "
+                                f"environnemental {source_file or '(source en mémoire)'} : "
+                                f"collected/computed/biological_daily_{day}.json"
+                            )
+                            matched_days.add(day)
                 except (ValueError, TypeError, LookupError) as exc:
                     logger.warning(f"Recherche biologique impossible : {exc}")
 
@@ -327,6 +342,13 @@ def compute_data(data, get_biological_day=None, get_previous_files=None):
             logger.info(f"--------------- Computed row --------------- : \n{row}")
             json_object.append(row)
 
+        for day in sorted(matched_days):
+            logger.info(
+                f"Date {day} retrouvée dans le fichier biologique "
+                f"collected/computed/biological_daily_{day}.json "
+                f"pour le fichier environnemental {source_file or '(source en mémoire)'} ; "
+                "données biologiques utilisées pour le calcul."
+            )
         return json_object
 
     except Exception as e:

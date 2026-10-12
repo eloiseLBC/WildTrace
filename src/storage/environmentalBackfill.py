@@ -51,17 +51,24 @@ def backfill_environmental_days(client, namespace, biological_days):
                 )
                 return
 
+    skipped_locations = 0
+    deferred = 0
     for day, biological in sorted(biological_days.items()):
         if day in existing_days:
             continue
         name = f"collected/to_compute/environmental_daily_{day}.json"
         try:
             if not isinstance(biological, dict) or biological.get("date") != day:
-                raise ValueError("Date biologique incohérente")
+                logger.warning(
+                    f"Reconstruction environnementale impossible pour {day} : "
+                    "aucun fichier biologique correspondant à cette date."
+                )
+                continue
             datetime.strptime(day, "%Y-%m-%d")
             address = location_address(biological)
             if not address:
-                raise ValueError("Ville/pays biologiques absents")
+                skipped_locations += 1
+                continue
             timezone_name = biological.get("timezone")
             ZoneInfo(timezone_name)
             position = get_location_coordinates(address)
@@ -93,4 +100,15 @@ def backfill_environmental_days(client, namespace, biological_days):
                 ValueError, TypeError, KeyError, LookupError) as exc:
             if isinstance(exc, oci.exceptions.ServiceError) and exc.status == 412:
                 continue
-            logger.warning(f"Reconstruction environnementale impossible pour {day} : {exc}")
+            deferred += 1
+            logger.debug(f"Reconstruction reportée pour {day} : {exc}")
+    if skipped_locations:
+        logger.info(
+            f"Reconstruction environnementale : {skipped_locations} jour(s) "
+            "ignoré(s), ville/pays non renseignés dans les données biologiques."
+        )
+    if deferred:
+        logger.warning(
+            f"Reconstruction environnementale : {deferred} jour(s) reporté(s) ; "
+            "localisation, timezone ou stockage indisponible (détails en DEBUG)."
+        )

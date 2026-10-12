@@ -208,12 +208,11 @@ def get_biological_daily(object_storage, namespace, date):
         if not isinstance(data, (dict, list)):
             raise ValueError("Le JSON doit contenir un objet ou une liste")
 
-        logger.info(f"Fichier biologique trouvé : {object_name}")
         return data
 
     except oci.exceptions.ServiceError as exc:
         if exc.status == 404:
-            logger.warning(f"Fichier biologique absent : {object_name}")
+            logger.debug(f"Fichier biologique absent : {object_name}")
         else:
             logger.error(f"Erreur OCI pour {object_name} : {exc}")
 
@@ -296,6 +295,7 @@ def computing_collected(options):
                     get_previous_files=lambda: previous_environmental_files(
                         object_storage, namespace, bucket_name, o
                     ),
+                    source_file=obj_name,
                 )
                 if computed_json == "":
                     logger.warning(
