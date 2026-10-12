@@ -4,7 +4,6 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from utils.collector import get_pressure_temperature, read_gps_position, get_rtc_datetime, read_luminosity, get_scd30_data
 from utils.generator import activate_generator, activate_generator_collected
 from utils.writeUtils import write_json
 from utils.dataUtils import get_formatted_moods, get_formatted_environments
@@ -106,6 +105,10 @@ if __name__ == "__main__":
                 logger.error(f"Data generator error: {e}")
                 
         elif options.collected:
+            from utils.collector import (
+                read_gps_position, get_rtc_datetime,
+                read_luminosity, get_scd30_data,
+            )
             logger.info("----- Data collect mode -----")
             zone_time = options.zone_time if options.zone_time else "France"
             local_timestamp = get_rtc_datetime(zone_time)

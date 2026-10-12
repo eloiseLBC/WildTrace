@@ -21,7 +21,14 @@ bucket_name = "wildtrace-environmental"
 def connect_to_bucket():
     logger.info("Connexion au bucket Oracle Cloud...")
     # Charger la configuration OCI à partir du fichier config
-    config = oci.config.from_file(config_oci_path)
+    explicit_path = os.environ.get("OCI_CONFIG_FILE")
+    config_path = Path(explicit_path or config_oci_path).expanduser()
+    if not explicit_path and not config_path.is_file():
+        local_config = Path.home() / ".oci" / "config"
+        if local_config.is_file():
+            config_path = local_config
+    logger.info(f"Configuration OCI : {config_path}")
+    config = oci.config.from_file(str(config_path))
     # Créer le client Object Storage
     object_storage = oci.object_storage.ObjectStorageClient(config)
     # Récupérer le namespace
