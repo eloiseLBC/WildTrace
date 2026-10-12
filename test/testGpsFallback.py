@@ -86,22 +86,49 @@ class GpsFallbackCase(unittest.TestCase):
         )
 
     def test_previous_file_has_priority(self):
-        result = self.run_compute([{"city": "Nice", "country": "France"}], self.biological)
+        self.row["altitude_m"] = None
+        result = self.run_compute([
+            {"latitude": 43.7, "longitude": 7.2, "altitude": 12}
+        ], self.biological)
         self.assertEqual(result[0]["gps_coordinates"], "computed")
-        self.gps.get_location_coordinates.assert_called_once_with("Nice, France")
+        self.assertEqual((result[0]["latitude"], result[0]["longitude"],
+                          result[0]["altitude"]), (43.7, 7.2, 12))
+        self.gps.get_location_coordinates.assert_not_called()
+        self.compute.get_altitude.assert_not_called()
 
     def test_fifth_file_is_considered(self):
-        self.run_compute([None] * 4 + [{"city": "Nice", "country": "France"}], self.biological)
-        self.gps.get_location_coordinates.assert_called_once_with("Nice, France")
+        result = self.run_compute([None] * 4 + [
+            {"latitude": 43.7, "longitude": 7.2, "altitude": 12}
+        ], self.biological)
+        self.assertEqual(result[0]["latitude"], 43.7)
+        self.gps.get_location_coordinates.assert_not_called()
 
     def test_sixth_file_is_excluded(self):
-        self.run_compute([None] * 5 + [{"city": "Nice", "country": "France"}], self.biological)
+        self.run_compute([None] * 5 + [
+            {"latitude": 43.7, "longitude": 7.2, "altitude": 12}
+        ], self.biological)
         self.gps.get_location_coordinates.assert_called_once_with("Lyon, France")
 
-    def test_null_city_uses_older_file(self):
-        self.run_compute([{"city": None, "country": "France"},
-                          [{"city": "Nice", "country": "France"}]])
-        self.gps.get_location_coordinates.assert_called_once_with("Nice, France")
+    def test_incomplete_position_uses_older_file(self):
+        result = self.run_compute([
+            {"latitude": 43.7, "longitude": None, "altitude": 12},
+            [{"latitude": 10, "longitude": 20, "altitude_m": 0}]
+        ])
+        self.assertEqual((result[0]["latitude"], result[0]["longitude"]), (10, 20))
+        self.gps.get_location_coordinates.assert_not_called()
+
+    def test_missing_altitude_uses_older_file(self):
+        self.row["altitude_m"] = None
+        result = self.run_compute([
+            {"latitude": 43.7, "longitude": 7.2, "altitude": None},
+            {"latitude": 10, "longitude": 20, "altitude": -10}
+        ])
+        self.assertEqual(result[0]["altitude"], -10)
+        self.gps.get_location_coordinates.assert_not_called()
+
+    def test_city_country_without_coordinates_does_not_geocode_history(self):
+        self.run_compute([{"city": "Nice", "country": "France"}], self.biological)
+        self.gps.get_location_coordinates.assert_called_once_with("Lyon, France")
 
     def test_biological_day(self):
         self.run_compute(bio=self.biological)

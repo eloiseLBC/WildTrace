@@ -56,14 +56,35 @@ def resolve_gps(row, previous_files, load_biological):
         return {"latitude": latitude, "longitude": longitude,
                 "gps_coordinates": "sensor"}
 
+    # Reprendre une position complète directement, sans ville/pays ni géocodage.
+    for document in islice(previous_files(), 5):
+        rows = document if isinstance(document, list) else [document]
+        for previous in reversed(rows):
+            if not isinstance(previous, dict):
+                continue
+            previous_lat = previous.get("latitude")
+            previous_lng = previous.get("longitude")
+            previous_altitude = previous.get("altitude")
+            if previous_altitude is None:
+                previous_altitude = previous.get("altitude_m")
+            if (valid_coordinate(previous_lat, 90)
+                    and valid_coordinate(previous_lng, 180)
+                    and isinstance(previous_altitude, (int, float))
+                    and not isinstance(previous_altitude, bool)
+                    and math.isfinite(previous_altitude)):
+                logger.info(
+                    "Coordonnées GPS reprises d'un fichier environnemental précédent : "
+                    f"latitude={previous_lat}, longitude={previous_lng}, "
+                    f"altitude={previous_altitude}"
+                )
+                return {
+                    "latitude": latitude if latitude_valid else previous_lat,
+                    "longitude": longitude if longitude_valid else previous_lng,
+                    "altitude": previous_altitude,
+                    "gps_coordinates": "computed",
+                }
+
     def candidates():
-        # Chaque document compte pour un fichier, même sans ville/pays.
-        for document in islice(previous_files(), 5):
-            rows = document if isinstance(document, list) else [document]
-            for previous in reversed(rows):
-                address = location_address(previous)
-                if address:
-                    yield address
         address = location_address(load_biological())
         if address:
             yield address
