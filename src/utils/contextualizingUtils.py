@@ -1,5 +1,6 @@
 """Jointure quotidienne et archivage des sources entièrement contextualisées."""
 import json
+import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -53,7 +54,8 @@ def contextualize():
         )
 
     # Lire les sorties pour retrouver les sources déjà entièrement traitées.
-    existing_days = set()
+    existing_names = set()
+    covered_days = {}
     source_days = {}
     start = None
     while True:
@@ -64,15 +66,20 @@ def contextualize():
         for obj in page.objects:
             if not obj.name.endswith(".json"):
                 continue
-            date = obj.name[len("contextualized_daily_"):-5]
+            match = re.fullmatch(r"contextualized_daily_(\d{4}-\d{2}-\d{2})(?:_\d+)?\.json", obj.name)
+            if not match:
+                continue
+            date = match.group(1)
             try:
                 datetime.strptime(date, "%Y-%m-%d")
             except ValueError:
                 continue
-            existing_days.add(date)
+            existing_names.add(obj.name)
             response = object_storage.get_object(namespace, destination_bucket, obj.name)
             try:
                 document = json.loads(response.data.content.decode("utf-8-sig"))
+                for name in document.get("source_files", {}).get("environmental", []):
+                    covered_days.setdefault(name, set()).add(date)
                 for name, dates in document.get("source_file_days", {}).items():
                     source_days.setdefault(name, set()).update(dates)
             finally:
@@ -82,7 +89,7 @@ def contextualize():
             break
     processed_files = {
         name for name, dates in source_days.items()
-        if dates and dates <= existing_days
+        if dates and dates <= covered_days.get(name, set())
     }
 
     days = {}
@@ -100,11 +107,12 @@ def contextualize():
         ).data
 
         for obj in page.objects:
-            if (not obj.name.endswith(".json")
-                    or obj.name.startswith("collected/computed/archives/")):
+            if not obj.name.endswith(".json"):
                 continue
-            present_files.add(obj.name)
-            if obj.name in processed_files:
+            source_name = obj.name.replace("collected/computed/archives/", "collected/computed/", 1)
+            if not obj.name.startswith("collected/computed/archives/"):
+                present_files.add(source_name)
+            if source_name in processed_files:
                 logger.info(f"Source déjà contextualisée : {obj.name}")
                 continue
             try:
@@ -113,7 +121,7 @@ def contextualize():
                 )
                 try:
                     rows = json.loads(response.data.content.decode("utf-8-sig"))
-                    source_etags[obj.name] = response.headers["etag"]
+                    source_etags[source_name] = response.headers["etag"]
                 finally:
                     response.data.close()
                 if isinstance(rows, dict):
@@ -128,12 +136,12 @@ def contextualize():
                         unreadable_files = True
                         logger.warning(f"Mesure invalide dans {obj.name} : {exc}")
                         continue
-                    file_days.setdefault(obj.name, set()).add(date)
-                    if date in existing_days:
+                    file_days.setdefault(source_name, set()).add(date)
+                    if date in covered_days.get(source_name, set()):
                         continue
                     day = days.setdefault(date, {"rows": [], "files": set()})
                     day["rows"].append(row)
-                    day["files"].add(obj.name)
+                    day["files"].add(source_name)
             except (oci.exceptions.ServiceError, oci.exceptions.RequestException,
                     ValueError, UnicodeError) as exc:
                 unreadable_files = True
@@ -169,29 +177,39 @@ def contextualize():
                 name: sorted(file_days[name]) for name in sorted(day["files"])
             },
         }
-        name = f"contextualized_daily_{date}.json"
-        try:
-            object_storage.put_object(
-                namespace, destination_bucket, name,
-                json.dumps(result, ensure_ascii=False, indent=2,
-                           allow_nan=False).encode("utf-8"),
-                content_type="application/json",
-                if_none_match="*",
-            )
-            existing_days.add(date)
-            logger.info(f"Fichier contextualisé enregistré : {name}")
-        except (oci.exceptions.ServiceError, oci.exceptions.RequestException,
-                ValueError, TypeError) as exc:
-            if isinstance(exc, oci.exceptions.ServiceError) and exc.status == 412:
-                logger.info(f"Fichier déjà présent, conservé : {name}")
+        index = 0
+        while True:
+            suffix = "" if index == 0 else f"_{index:03d}"
+            name = f"contextualized_daily_{date}{suffix}.json"
+            if name in existing_names:
+                index += 1
                 continue
-            logger.error(f"Contextualisation échouée pour {date} : {exc}")
+            try:
+                object_storage.put_object(
+                    namespace, destination_bucket, name,
+                    json.dumps(result, ensure_ascii=False, indent=2,
+                               allow_nan=False).encode("utf-8"),
+                    content_type="application/json", if_none_match="*",
+                )
+                existing_names.add(name)
+                for source_name in day["files"]:
+                    covered_days.setdefault(source_name, set()).add(date)
+                logger.info(f"Fichier contextualisé enregistré : {name}")
+                break
+            except (oci.exceptions.ServiceError, oci.exceptions.RequestException,
+                    ValueError, TypeError) as exc:
+                if isinstance(exc, oci.exceptions.ServiceError) and exc.status == 412:
+                    existing_names.add(name)
+                    index += 1
+                    continue
+                logger.error(f"Contextualisation échouée pour {date} : {exc}")
+                break
 
     # Déplacer uniquement les sources dont tous les jours ont une sortie persistée.
     # Attendre la fin de la pagination avant de modifier les noms des objets.
     processed_files.update(
         name for name, dates in file_days.items()
-        if dates and dates <= existing_days
+        if dates and dates <= covered_days.get(name, set())
     )
     for source_name in sorted(present_files & processed_files):
         prefix = "collected/computed/"
@@ -222,3 +240,4 @@ def contextualize():
                 # La source a disparu depuis le listing (exécution concurrente).
                 continue
             logger.error(f"Archivage échoué pour {source_name} : {exc}")
+
