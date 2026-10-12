@@ -9,6 +9,7 @@ from utils.generator import activate_generator, activate_generator_collected
 from utils.writeUtils import write_json
 from utils.dataUtils import get_formatted_moods, get_formatted_environments
 from utils.loggerUtils import logger, timestamp_str
+from utils.contextualizingUtils import contextualize
 from datetime import datetime
 from storage.bucket import upload_to_bucket, computing_collected
 from my_secrets.secrets import generated_collected_data_dir, collected_data_dir
@@ -18,7 +19,7 @@ df = pd.DataFrame()
 
 
 if __name__ == "__main__":
-    logger.info("----- Application : developing phase -----")
+    logger.info("--------------- WILDTRACE ---------------")
 
     parser = optparse.OptionParser()
 
@@ -51,6 +52,11 @@ if __name__ == "__main__":
                       action="store_true",
                       default=False,
                       help="Generate completed data files and send it to bucket")
+    parser.add_option("--contextualize",
+                          dest="contextualize",
+                          action="store_true",
+                          default=False,
+                          help="Contextualize data files by merge environmental and biological files then send it to bucket")
     parser.add_option("-g", "--generator-computed",
                       dest="generator_computed",
                       action="store_true",
@@ -134,11 +140,10 @@ if __name__ == "__main__":
         elif options.computed:
             logger.info("----- Data computing and sending mode -----")
             computing_collected(options)
-            # Get files in bucket
-            # Log number files in bucket and in local for "collected, log the name for missing files"
-            # Compute for each files the missing data
-            # Write files in local at data/output/computed
-            # For computing the pressure, It needs latitude, longitude, timestamp and timezone (do it at the end)
+        elif options.contextualize:
+            logger.info("----- Data contextualizing and sending mode -----")
+            contextualize()
+            
 
     except Exception as e:
         logger.error(f"General error : {e}")
