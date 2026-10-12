@@ -151,6 +151,10 @@ def contextualize():
         biological = get_biological_daily(object_storage, namespace, date)
         if not isinstance(biological, dict) or biological.get("date") != date:
             logger.info(f"Jour ignoré sans correspondance biologique valide : {date}")
+            logger.info(
+                f"Fichiers environnementaux concernés pour {date} : "
+                + ", ".join(sorted(day["files"]))
+            )
             continue
         result = {
             "date": date,
