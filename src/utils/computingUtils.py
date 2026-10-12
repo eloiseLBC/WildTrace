@@ -339,7 +339,7 @@ def compute_data(data, get_biological_day=None, get_previous_files=None, source_
                 for field in ("city", "country", "formatted_address", "aquatic_location"):
                     if field in location:
                         row[field] = location[field]
-            logger.info(f"--------------- Computed row --------------- : \n{row}")
+            logger.info(f"Computed row: {row}")
             json_object.append(row)
 
         for day in sorted(matched_days):
