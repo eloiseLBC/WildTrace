@@ -112,41 +112,41 @@ def compute_biological_data(biological_data, get_biological_day):
 
     return result
 
-def compute_data(data, get_biological_day=None):
+from .gpsUtils import resolve_gps
+
+
+def compute_data(data, get_biological_day=None, get_previous_files=None):
     # Initialisation des variables
     json_object = []
-    timestamp_str = ""
-    timestamp_utc = None
-    timezone_input = None
-    temperature = 0.0
-    temperature_source = "sensor"
-    humidity = 0.0
-    humidity_source = "sensor"
-    luminosity = None
-    luminosity_source = "sensor"
-    white_luminosity = 0.0
-    concentration_co2 = 0.0
-    concentration_co2_source = "sensor"
-    lat = 0.0
-    lng = 0.0
-    lat_source = "sensor"
-    lng_source = "sensor"
-    altitude_source = "sensor"
-    altitude = None
-    moods = []
-    enviroments = []
-    position = None
-        
     try:
         for row in data:
+            row = dict(row)
+            for field in ("temperature", "humidity", "luminosity", "concentration_co2"):
+                row.setdefault(field, None)
+            white_luminosity = row.get("white_luminosity")
+            # Les valeurs et les sources appartiennent à une mesure, pas au fichier.
+            lat_source = lng_source = altitude_source = "sensor"
+            temperature_source = humidity_source = concentration_co2_source = "sensor"
+            luminosity_source = "sensor"
+            moods = row.get("moods", [])
+            environments = row.get("environments", [])
+            timezone_input = row.get("timezone")
+            timestamp_str = row.get("local_timestamp") or row.get("timestamp")
+            if not timestamp_str:
+                logger.warning("Timestamp absent : fichier conservé dans to_compute.")
+                return ""
+            try:
+                timestamp_utc = datetime.fromisoformat(timestamp_str)
+            except ValueError:
+                timestamp_utc = datetime.strptime(timestamp_str, "%d-%m-%Y %H:%M:%S")
+            if timestamp_utc.tzinfo is not None and timezone_input:
+                timestamp_utc = timestamp_utc.astimezone(ZoneInfo(timezone_input))
             lat = row.get("latitude")
             lng = row.get("longitude")
             altitude = row.get("altitude")
             if altitude is None:
                 altitude = row.get("altitude_m")
 
-            address = None
-            position = None
             
             logger.info(f"Data : {data}")
 
@@ -174,41 +174,41 @@ def compute_data(data, get_biological_day=None):
                         date = date.astimezone(ZoneInfo(row["timezone"]))
 
                     if get_biological_day is not None:
-                        biological_data = get_biological_day(
-                            date.date().isoformat()
-                        )
+                        day = date.date().isoformat()
+                        biological_data = get_biological_day(day)
+                        if (not isinstance(biological_data, dict)
+                                or biological_data.get("date") != day):
+                            biological_data = None
                 except (ValueError, TypeError, LookupError) as exc:
                     logger.warning(f"Recherche biologique impossible : {exc}")
 
                 return biological_data
 
+            position = resolve_gps(
+                row, get_previous_files or (lambda: []), load_biological_day
+            )
+            if position is None:
+                return ""
+            lat, lng = position["latitude"], position["longitude"]
+            lat_source = "sensor" if lat == row.get("latitude") else "computed"
+            lng_source = "sensor" if lng == row.get("longitude") else "computed"
+            if altitude is None:
+                altitude = position.get("altitude")
+                if altitude is None:
+                    altitude = get_altitude(lat, lng)
+                altitude_source = "computed"
+            # Résoudre les coordonnées avant les appels météo, quel que soit
+            # l'ordre des clés du JSON.
+            if row.get("temperature") is None or row.get("humidity") is None:
+                temperature_api, temperature_source_api, humidity_api, humidity_source_api = (
+                    get_temperature_humidity(lat, lng, timestamp_str, timezone_input)
+                )
             for k, v in row.items():
                 match k:
-                    case "timestamp":
-                        timestamp_str = v
-                        timestamp_utc = datetime.strptime(timestamp_str, "%d-%m-%Y %H:%M:%S").replace(tzinfo=timezone.utc)
-                        timestamp_utc = timestamp_utc.strftime("%d-%m-%Y %H:%M:%S")
-                        timestamp_utc = datetime.strptime(timestamp_utc, "%d-%m-%Y %H:%M:%S")
-
-                    case "local_timestamp":
-                        timestamp_str = v
-                        if timestamp_str != None:
-                            timestamp_utc = datetime.strptime(
-                                timestamp_str, "%Y-%m-%d %H:%M:%S"
-                            ).replace(tzinfo=timezone.utc)
-                            timestamp_utc = timestamp_utc.strftime(
-                                "%d-%m-%Y %H:%M:%S"
-                            )
-                            timestamp_utc = datetime.strptime(timestamp_utc, "%d-%m-%Y %H:%M:%S")
-
-                    case "timezone":
-                        timezone_input = v
-
                     case "temperature":
                         if v is not None:
                             temperature = v
                         else:
-                            (temperature_api ,temperature_source_api , humidity_api, humidity_source_api,) = get_temperature_humidity(lat, lng, timestamp_str, timezone_input)
                             temperature = temperature_api
                             temperature_source = temperature_source_api
 
@@ -239,64 +239,6 @@ def compute_data(data, get_biological_day=None):
                             concentration_co2 = concentration_co2_api
                             concentration_co2_source = concentration_co2_source_api
 
-                    case "latitude":
-                        if v is not None:
-                            lat = v
-                        else:
-                            logger.info("Latitude nulle -> Calcul de la donnée")
-                            biological_data = load_biological_day()
-
-                            address = (
-                                (biological_data or {})
-                                .get("city_country", {})
-                                .get("formatted_address")
-                            )
-                            
-                            logger.info(f"Address : {address}")
-
-                            if address:
-                                position = get_location_coordinates(address)
-                                lat = position["latitude"]
-                                lat_source = "computed"
-                            else:
-                                logger.warning(
-                                    "Adresse absente du fichier biologique."
-                                )
-
-                    case "longitude":
-                        if v is not None:
-                            lng = v
-                        else:
-                            logger.info("Longitude nulle -> Calcul de la donnée")
-                            if address:
-                                lng = position["longitude"]
-                                lng_source = "computed"
-                            else:
-                                logger.warning("Adresse absente du fichier biologique.")
-
-                    case "altitude":
-                        if v is not None:
-                            altitude = v
-                        else:
-                            logger.info("Altitude nulle -> Calcul de la donnée")
-                            if row.get("altitude_m") is None:
-                                if address:
-                                    altitude = position["altitude"]
-                                    altitude_source = "computed"
-                                else:
-                                    logger.warning("Adresse absente du fichier biologique.")
-                                                                    
-                    case "altitude_m":
-                        if v is not None:
-                            altitude = v
-                        else:
-                            logger.info("Altitude_m nulle")
-                            if row.get("altitude") is None:
-                                if address:
-                                    altitude = position["altitude"]
-                                else:
-                                    logger.warning("Adresse absente du fichier biologique.")
-                                                               
                     case "moods":
                         moods = v
 
@@ -320,11 +262,12 @@ def compute_data(data, get_biological_day=None):
                 biological_data, get_biological_day
             )
     
-            formatted_ddmmyyyy = get_formatted_ddmmyyyy(timestamp_str)
+            formatted_ddmmyyyy = timestamp_utc.date().isoformat()
             row = {
                 "timestamp": timestamp_str,
                 "timezone": timezone_input,
                 "formatted_ddmmyyyy": formatted_ddmmyyyy,
+                "gps_coordinates": position["gps_coordinates"],
                 "latitude": lat,
                 "latitude_source": lat_source,
                 "longitude": lng,

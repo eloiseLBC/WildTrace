@@ -8,6 +8,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 from utils.loggerUtils import logger, log_file, timestamp_str
 from utils.computingUtils import compute_data, compute_biological_data
 from utils.writeUtils import write_json
+from storage.environmentalHistory import (
+    file_order, list_environmental_objects, previous_environmental_files,
+)
 from my_secrets.secrets import config_oci_path, computed_data_dir_to_send, collected_uploaded_data_dir, tmp_to_compute_dir, computed_data_dir_uploaded
 
 bucket_name = "wildtrace-environmental"
@@ -220,12 +223,9 @@ def computing_collected(options):
     computing_biological(object_storage, namespace)
 
     bucket_path = "collected/to_compute"
-    object_list = object_storage.list_objects(
-        namespace,
-        bucket_name,
-        prefix=bucket_path + "/",  
-        fields="name,timeCreated,size"
-    )
+    objects = sorted(list_environmental_objects(
+        object_storage, namespace, bucket_name, bucket_path + "/"
+    ), key=file_order)
 
     local_to_compute_dir = Path(tmp_to_compute_dir)
     local_to_compute_dir.mkdir(parents=True, exist_ok=True)
@@ -233,7 +233,6 @@ def computing_collected(options):
     uploaded_dir = Path(collected_uploaded_data_dir)
     uploaded_dir.mkdir(parents=True, exist_ok=True)
 
-    objects = object_list.data.objects or []
     if len(objects) == 0:
         logger.info("No files to compute.")
         return
@@ -283,6 +282,9 @@ def computing_collected(options):
                     data,
                     get_biological_day=lambda date: get_biological_daily(
                         object_storage, namespace, date
+                    ),
+                    get_previous_files=lambda: previous_environmental_files(
+                        object_storage, namespace, bucket_name, o
                     ),
                 )
                 if computed_json == "":
