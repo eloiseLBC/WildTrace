@@ -136,35 +136,32 @@ def get_altitude(lat, lng, max_retries=2, base_delay=1):
     return None
 
 
-def get_pressure(lat, long, formatted_timestamp, hour):
+def get_pressure(lat, long, formatted_timestamp, hour, timezone_name="UTC"):
+    """Pression historique à la position et à l'heure locale demandées."""
     try:
-        # Setup the Open-Meteo API client with cache and retry on error
-        cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
-        retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
-        openmeteo = openmeteo_requests.Client(session = retry_session)
-        
-        # Make sure all required weather variables are listed here
-        # The order of variables in hourly or daily is important to assign them correctly below
-        url = "https://api.open-meteo.com/v1/forecast"
-        params = {
-            "latitude": 20.4737,
-            "longitude": 106.0229,
-            "hourly": ["temperature_2m", "surface_pressure", "visibility", "rain"],
-            "start_date": formatted_timestamp,
-            "end_date": formatted_timestamp,
-        }
-        responses = openmeteo.weather_api(url, params=params)
+        response = requests.get(
+            "https://archive-api.open-meteo.com/v1/archive",
+            params={
+                "latitude": lat, "longitude": long,
+                "timezone": timezone_name,
+                "start_date": formatted_timestamp,
+                "end_date": formatted_timestamp,
+                "hourly": "surface_pressure",
+            },
+            timeout=20,
+        )
+        response.raise_for_status()
+        hourly = response.json()["hourly"]
+        index = hourly["time"].index(f"{formatted_timestamp}T{hour:02d}:00")
+        value = hourly["surface_pressure"][index]
+        if (not isinstance(value, (int, float)) or isinstance(value, bool)
+                or not math.isfinite(value)):
+            raise ValueError("Pression absente ou invalide")
+        return float(value)
+    except (requests.RequestException, KeyError, IndexError, ValueError, TypeError) as exc:
+        logger.warning(f"Pression historique indisponible : {exc}")
+        return None
 
-        # Process first location. Add a for-loop for multiple locations or weather models
-        response = responses[0]
-        hourly = response.Hourly()
-        hourly_surface_pressure = hourly.Variables(1).ValuesAsNumpy()
-        return float(hourly_surface_pressure[hour])
-    except Exception as e:
-        logger.error(f"Error in get_pressure fonction : {e}")
-        return ""
-    
-    
 
 def get_distance_from_equator(lat):
     """

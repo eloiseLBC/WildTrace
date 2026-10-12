@@ -63,7 +63,7 @@ def compute_biological_data(biological_data, get_biological_day):
     historical_hrv = []
 
     # Uniquement les jours précédents : exclure le jour calculé.
-    first_watch_date = datetime(2026, 2, 1).date()
+    first_watch_date = datetime.strptime(BIOLOGICAL_START_DAY, "%Y-%m-%d").date()
 
     for offset in range(1, 29):
         previous_day = (date - timedelta(days=offset)).date()
@@ -112,41 +112,57 @@ def compute_biological_data(biological_data, get_biological_day):
 
     return result
 
-def compute_data(data, get_biological_day=None):
+from .gpsUtils import resolve_gps
+from .environmentalPolicy import ENVIRONMENTAL_START_DAY, BIOLOGICAL_START_DAY, environmental_day
+
+
+def compute_data(data, get_biological_day=None, get_previous_files=None, source_file=None):
     # Initialisation des variables
+    # Vérifier tout le fichier avant le moindre calcul, y compris les fichiers
+    # qui contiennent des mesures de part et d'autre de la limite.
+    try:
+        if any(environmental_day(row) < ENVIRONMENTAL_START_DAY for row in data):
+            logger.info(
+                f"Fichier environnemental ignoré : mesure antérieure au "
+                f"{ENVIRONMENTAL_START_DAY} ; conservé dans to_compute."
+            )
+            return ""
+    except (ValueError, TypeError, KeyError, LookupError, AttributeError) as exc:
+        logger.warning(f"Date environnementale invalide : fichier conservé : {exc}")
+        return ""
     json_object = []
-    timestamp_str = ""
-    timestamp_utc = None
-    timezone_input = None
-    temperature = 0.0
-    temperature_source = "sensor"
-    humidity = 0.0
-    humidity_source = "sensor"
-    luminosity = None
-    luminosity_source = "sensor"
-    white_luminosity = 0.0
-    concentration_co2 = 0.0
-    concentration_co2_source = "sensor"
-    lat = 0.0
-    lng = 0.0
-    lat_source = "sensor"
-    lng_source = "sensor"
-    altitude_source = "sensor"
-    altitude = None
-    moods = []
-    enviroments = []
-    position = None
-        
+    matched_days = set()
+    missing_days = set()
     try:
         for row in data:
+            row = dict(row)
+            for field in ("temperature", "humidity", "luminosity", "concentration_co2"):
+                row.setdefault(field, None)
+            white_luminosity = row.get("white_luminosity")
+            # Les valeurs et les sources appartiennent à une mesure, pas au fichier.
+            reconstructed = bool(row.get("reconstruction"))
+            lat_source = lng_source = altitude_source = "computed" if reconstructed else "sensor"
+            temperature_source = humidity_source = concentration_co2_source = "sensor"
+            luminosity_source = "sensor"
+            moods = row.get("moods", [])
+            environments = row.get("environments", [])
+            timezone_input = row.get("timezone")
+            timestamp_str = row.get("local_timestamp") or row.get("timestamp")
+            if not timestamp_str:
+                logger.warning("Timestamp absent : fichier conservé dans to_compute.")
+                return ""
+            try:
+                timestamp_utc = datetime.fromisoformat(timestamp_str)
+            except ValueError:
+                timestamp_utc = datetime.strptime(timestamp_str, "%d-%m-%Y %H:%M:%S")
+            if timestamp_utc.tzinfo is not None and timezone_input:
+                timestamp_utc = timestamp_utc.astimezone(ZoneInfo(timezone_input))
             lat = row.get("latitude")
             lng = row.get("longitude")
             altitude = row.get("altitude")
             if altitude is None:
                 altitude = row.get("altitude_m")
 
-            address = None
-            position = None
             
             logger.info(f"Data : {data}")
 
@@ -174,41 +190,55 @@ def compute_data(data, get_biological_day=None):
                         date = date.astimezone(ZoneInfo(row["timezone"]))
 
                     if get_biological_day is not None:
-                        biological_data = get_biological_day(
-                            date.date().isoformat()
-                        )
+                        day = date.date().isoformat()
+                        biological_data = get_biological_day(day)
+                        if (not isinstance(biological_data, dict)
+                                or biological_data.get("date") != day):
+                            biological_data = None
+                            if day not in missing_days:
+                                logger.warning(
+                                    f"Aucun fichier biologique pour la date {day} "
+                                    f"du fichier environnemental {source_file or '(source en mémoire)'}."
+                                )
+                                missing_days.add(day)
+                        elif day not in matched_days:
+                            logger.info(
+                                f"Correspondance biologique pour la date {day} du fichier "
+                                f"environnemental {source_file or '(source en mémoire)'} : "
+                                f"collected/computed/biological_daily_{day}.json"
+                            )
+                            matched_days.add(day)
                 except (ValueError, TypeError, LookupError) as exc:
                     logger.warning(f"Recherche biologique impossible : {exc}")
 
                 return biological_data
 
+            position = resolve_gps(
+                row, get_previous_files or (lambda: []), load_biological_day
+            )
+            if position is None:
+                return ""
+            lat, lng = position["latitude"], position["longitude"]
+            lat_source = "sensor" if not reconstructed and lat == row.get("latitude") else "computed"
+            lng_source = "sensor" if not reconstructed and lng == row.get("longitude") else "computed"
+            if altitude is None:
+                altitude = position.get("altitude")
+                if altitude is None:
+                    altitude = get_altitude(lat, lng)
+                altitude_source = "computed"
+            # Résoudre les coordonnées avant les appels météo, quel que soit
+            # l'ordre des clés du JSON.
+            if row.get("temperature") is None or row.get("humidity") is None:
+                temperature_api, temperature_source_api, humidity_api, humidity_source_api = (
+                    get_temperature_humidity(lat, lng, timestamp_str, timezone_input)
+                    or (None, None, None, None)
+                )
             for k, v in row.items():
                 match k:
-                    case "timestamp":
-                        timestamp_str = v
-                        timestamp_utc = datetime.strptime(timestamp_str, "%d-%m-%Y %H:%M:%S").replace(tzinfo=timezone.utc)
-                        timestamp_utc = timestamp_utc.strftime("%d-%m-%Y %H:%M:%S")
-                        timestamp_utc = datetime.strptime(timestamp_utc, "%d-%m-%Y %H:%M:%S")
-
-                    case "local_timestamp":
-                        timestamp_str = v
-                        if timestamp_str != None:
-                            timestamp_utc = datetime.strptime(
-                                timestamp_str, "%Y-%m-%d %H:%M:%S"
-                            ).replace(tzinfo=timezone.utc)
-                            timestamp_utc = timestamp_utc.strftime(
-                                "%d-%m-%Y %H:%M:%S"
-                            )
-                            timestamp_utc = datetime.strptime(timestamp_utc, "%d-%m-%Y %H:%M:%S")
-
-                    case "timezone":
-                        timezone_input = v
-
                     case "temperature":
                         if v is not None:
                             temperature = v
                         else:
-                            (temperature_api ,temperature_source_api , humidity_api, humidity_source_api,) = get_temperature_humidity(lat, lng, timestamp_str, timezone_input)
                             temperature = temperature_api
                             temperature_source = temperature_source_api
 
@@ -235,68 +265,13 @@ def compute_data(data, get_biological_day=None):
                         if v is not None:
                             concentration_co2 = v
                         else:
-                            (concentration_co2_api, concentration_co2_source_api) = get_co2(lat, lng, timestamp_str, timezone_input)
+                            concentration_co2_api, concentration_co2_source_api = (
+                                get_co2(lat, lng, timestamp_str, timezone_input)
+                                or (None, None)
+                            )
                             concentration_co2 = concentration_co2_api
                             concentration_co2_source = concentration_co2_source_api
 
-                    case "latitude":
-                        if v is not None:
-                            lat = v
-                        else:
-                            logger.info("Latitude nulle -> Calcul de la donnée")
-                            biological_data = load_biological_day()
-
-                            address = (
-                                (biological_data or {})
-                                .get("city_country", {})
-                                .get("formatted_address")
-                            )
-                            
-                            logger.info(f"Address : {address}")
-
-                            if address:
-                                position = get_location_coordinates(address)
-                                lat = position["latitude"]
-                                lat_source = "computed"
-                            else:
-                                logger.warning(
-                                    "Adresse absente du fichier biologique."
-                                )
-
-                    case "longitude":
-                        if v is not None:
-                            lng = v
-                        else:
-                            logger.info("Longitude nulle -> Calcul de la donnée")
-                            if address:
-                                lng = position["longitude"]
-                                lng_source = "computed"
-                            else:
-                                logger.warning("Adresse absente du fichier biologique.")
-
-                    case "altitude":
-                        if v is not None:
-                            altitude = v
-                        else:
-                            logger.info("Altitude nulle -> Calcul de la donnée")
-                            if row.get("altitude_m") is None:
-                                if address:
-                                    altitude = position["altitude"]
-                                    altitude_source = "computed"
-                                else:
-                                    logger.warning("Adresse absente du fichier biologique.")
-                                                                    
-                    case "altitude_m":
-                        if v is not None:
-                            altitude = v
-                        else:
-                            logger.info("Altitude_m nulle")
-                            if row.get("altitude") is None:
-                                if address:
-                                    altitude = position["altitude"]
-                                else:
-                                    logger.warning("Adresse absente du fichier biologique.")
-                                                               
                     case "moods":
                         moods = v
 
@@ -308,11 +283,16 @@ def compute_data(data, get_biological_day=None):
                 return ""
 
             if any(value is None for value in (lat, lng, altitude, temperature, humidity, concentration_co2, luminosity,)):
+                if not reconstructed:
+                    logger.warning(
+                        "Donnée manquante après fallback. "
+                        "Le fichier reste dans collected/to_compute."
+                    )
+                    return ""
                 logger.warning(
-                    "Donnée manquante après fallback. "
-                    "Le fichier reste dans collected/to_compute."
+                    f"Reconstruction partielle pour {timestamp_str} : "
+                    "les données indisponibles restent à null."
                 )
-                return ""
             
             # Charger le fichier même si les coordonnées capteur sont présentes.
             biological_data = load_biological_day()
@@ -320,11 +300,12 @@ def compute_data(data, get_biological_day=None):
                 biological_data, get_biological_day
             )
     
-            formatted_ddmmyyyy = get_formatted_ddmmyyyy(timestamp_str)
+            formatted_ddmmyyyy = timestamp_utc.date().isoformat()
             row = {
                 "timestamp": timestamp_str,
                 "timezone": timezone_input,
                 "formatted_ddmmyyyy": formatted_ddmmyyyy,
+                "gps_coordinates": position["gps_coordinates"],
                 "latitude": lat,
                 "latitude_source": lat_source,
                 "longitude": lng,
@@ -334,7 +315,8 @@ def compute_data(data, get_biological_day=None):
                 "humidity": humidity,
                 "humidity_source": humidity_source,
                 "pressure": get_pressure(
-                    lat, lng, formatted_ddmmyyyy, timestamp_utc.hour
+                    lat, lng, formatted_ddmmyyyy, timestamp_utc.hour,
+                    timezone_name=timezone_input or "UTC",
                 ),
                 "luminosity": luminosity,
                 "luminosity_source": luminosity_source,
@@ -363,9 +345,23 @@ def compute_data(data, get_biological_day=None):
                 },
             }
 
-            logger.info(f"--------------- Computed row --------------- : \n{row}")
+            if reconstructed:
+                row["reconstruction"] = data[len(json_object)]["reconstruction"]
+                row["biological"]["summary"] = (biological_data or {}).get("summary", {})
+                location = (biological_data or {}).get("city_country") or {}
+                for field in ("city", "country", "formatted_address", "aquatic_location"):
+                    if field in location:
+                        row[field] = location[field]
+            logger.info(f"Computed row: {row}")
             json_object.append(row)
 
+        for day in sorted(matched_days):
+            logger.info(
+                f"Date {day} retrouvée dans le fichier biologique "
+                f"collected/computed/biological_daily_{day}.json "
+                f"pour le fichier environnemental {source_file or '(source en mémoire)'} ; "
+                "données biologiques utilisées pour le calcul."
+            )
         return json_object
 
     except Exception as e:

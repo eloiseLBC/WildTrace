@@ -3,11 +3,17 @@ import oci
 import sys
 import os
 import json
+from datetime import datetime, timedelta
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from utils.loggerUtils import logger, log_file, timestamp_str
 from utils.computingUtils import compute_data, compute_biological_data
 from utils.writeUtils import write_json
+from utils.environmentalPolicy import BIOLOGICAL_START_DAY
+from storage.environmentalBackfill import backfill_environmental_days
+from storage.environmentalHistory import (
+    file_order, list_environmental_objects, previous_environmental_files,
+)
 from my_secrets.secrets import config_oci_path, computed_data_dir_to_send, collected_uploaded_data_dir, tmp_to_compute_dir, computed_data_dir_uploaded
 
 bucket_name = "wildtrace-environmental"
@@ -98,6 +104,9 @@ def computing_biological(object_storage, namespace):
     biological_bucket = "wildtrace-biological"
     prefix = "collected/computed/biological_daily_"
     cache = {}
+    daily_documents = {}
+    today = datetime.now().date()
+    first_recent_day = (today - timedelta(days=5)).isoformat()
 
     def get_day(date):
         if date not in cache:
@@ -106,8 +115,8 @@ def computing_biological(object_storage, namespace):
             )
         return cache[date]
 
-    # Parcourir toutes les pages de fichiers du bucket.
-    start = None
+    # Commencer directement à la limite dans le listing OCI, sans lire septembre.
+    start = prefix + BIOLOGICAL_START_DAY
 
     while True:
         params = {"prefix": prefix}
@@ -121,7 +130,8 @@ def computing_biological(object_storage, namespace):
         for obj in page.objects:
             date = obj.name[len(prefix):-5]
 
-            if not obj.name.endswith(".json") or "/" in date:
+            if (not obj.name.endswith(".json") or "/" in date
+                    or date < BIOLOGICAL_START_DAY):
                 continue
 
             try:
@@ -142,11 +152,13 @@ def computing_biological(object_storage, namespace):
                     continue
 
                 cache[date] = data
+                daily_documents[date] = data
                 metrics = compute_biological_data(data, get_day)
 
                 # Conserver les données existantes et ajouter les indicateurs.
                 if data.get("computed_metrics") == metrics:
-                    logger.info(f"Indicateurs biologiques déjà à jour : {obj.name}")
+                    if first_recent_day <= date < today.isoformat():
+                        logger.info(f"Indicateurs biologiques déjà à jour : {obj.name}")
                     continue
 
                 enriched = {**data, "computed_metrics": metrics}
@@ -164,6 +176,7 @@ def computing_biological(object_storage, namespace):
                 )
 
                 cache[date] = enriched
+                daily_documents[date] = enriched
                 logger.info(f"Calcul biologique enregistré : {obj.name}")
 
             except Exception as exc:
@@ -174,10 +187,13 @@ def computing_biological(object_storage, namespace):
         start = page.next_start_with
         if not start:
             break
+    return daily_documents
         
         
 def get_biological_daily(object_storage, namespace, date):
     """Récupère le JSON biologique du jour, ou None si indisponible."""
+    if date < BIOLOGICAL_START_DAY:
+        return None
     object_name = f"collected/computed/biological_daily_{date}.json"
 
     try:
@@ -196,12 +212,11 @@ def get_biological_daily(object_storage, namespace, date):
         if not isinstance(data, (dict, list)):
             raise ValueError("Le JSON doit contenir un objet ou une liste")
 
-        logger.info(f"Fichier biologique trouvé : {object_name}")
         return data
 
     except oci.exceptions.ServiceError as exc:
         if exc.status == 404:
-            logger.warning(f"Fichier biologique absent : {object_name}")
+            logger.debug(f"Fichier biologique absent : {object_name}")
         else:
             logger.error(f"Erreur OCI pour {object_name} : {exc}")
 
@@ -217,15 +232,13 @@ def get_biological_daily(object_storage, namespace, date):
 def computing_collected(options):
     object_storage, namespace = connect_to_bucket()
     
-    computing_biological(object_storage, namespace)
+    biological_days = computing_biological(object_storage, namespace)
+    backfill_environmental_days(object_storage, namespace, biological_days)
 
     bucket_path = "collected/to_compute"
-    object_list = object_storage.list_objects(
-        namespace,
-        bucket_name,
-        prefix=bucket_path + "/",  
-        fields="name,timeCreated,size"
-    )
+    objects = sorted(list_environmental_objects(
+        object_storage, namespace, bucket_name, bucket_path + "/"
+    ), key=file_order)
 
     local_to_compute_dir = Path(tmp_to_compute_dir)
     local_to_compute_dir.mkdir(parents=True, exist_ok=True)
@@ -233,7 +246,6 @@ def computing_collected(options):
     uploaded_dir = Path(collected_uploaded_data_dir)
     uploaded_dir.mkdir(parents=True, exist_ok=True)
 
-    objects = object_list.data.objects or []
     if len(objects) == 0:
         logger.info("No files to compute.")
         return
@@ -284,6 +296,10 @@ def computing_collected(options):
                     get_biological_day=lambda date: get_biological_daily(
                         object_storage, namespace, date
                     ),
+                    get_previous_files=lambda: previous_environmental_files(
+                        object_storage, namespace, bucket_name, o
+                    ),
+                    source_file=obj_name,
                 )
                 if computed_json == "":
                     logger.warning(
