@@ -88,6 +88,7 @@ def contextualize():
     days = {}
     file_days = {}
     source_etags = {}
+    present_files = set()
     unreadable_files = False
     start = None
     while True:
@@ -102,6 +103,7 @@ def contextualize():
             if (not obj.name.endswith(".json")
                     or obj.name.startswith("collected/computed/archives/")):
                 continue
+            present_files.add(obj.name)
             if obj.name in processed_files:
                 logger.info(f"Source déjà contextualisée : {obj.name}")
                 continue
@@ -187,7 +189,7 @@ def contextualize():
         name for name, dates in file_days.items()
         if dates and dates <= existing_days
     )
-    for source_name in sorted(processed_files):
+    for source_name in sorted(present_files & processed_files):
         prefix = "collected/computed/"
         archive_prefix = prefix + "archives/"
         if (not source_name.startswith(prefix)
@@ -213,6 +215,6 @@ def contextualize():
             logger.info(f"Source contextualisée archivée : {archive_name}")
         except (oci.exceptions.ServiceError, oci.exceptions.RequestException) as exc:
             if isinstance(exc, oci.exceptions.ServiceError) and exc.status == 404:
-                logger.info(f"Source déjà déplacée ou absente : {source_name}")
+                # La source a disparu depuis le listing (exécution concurrente).
                 continue
             logger.error(f"Archivage échoué pour {source_name} : {exc}")
