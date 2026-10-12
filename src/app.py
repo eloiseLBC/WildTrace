@@ -166,8 +166,5 @@ if __name__ == "__main__":
         elif options.bucket and not (options.generator_computed or options.generator_collected):
             logger.info("----- Uploading collected files to Oracle Cloud bucket")
             upload_to_bucket(f"{collected_data_dir}/", options)
-        elif options.contextualize:
-            logger.info("----- Uploading contextualized files to Oracle Cloud bucket")
-            logger.info("TODO")
         logger.info(f"----- End of program -----")
         logger.info(f"Duration : {datetime.now() - timestamp_begin_job}")
