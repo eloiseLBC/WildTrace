@@ -3,6 +3,7 @@ import oci
 import sys
 import os
 import json
+from datetime import datetime, timedelta
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from utils.loggerUtils import logger, log_file, timestamp_str
@@ -101,6 +102,8 @@ def computing_biological(object_storage, namespace):
     biological_bucket = "wildtrace-biological"
     prefix = "collected/computed/biological_daily_"
     cache = {}
+    today = datetime.now().date()
+    first_recent_day = (today - timedelta(days=5)).isoformat()
 
     def get_day(date):
         if date not in cache:
@@ -149,7 +152,8 @@ def computing_biological(object_storage, namespace):
 
                 # Conserver les données existantes et ajouter les indicateurs.
                 if data.get("computed_metrics") == metrics:
-                    logger.info(f"Indicateurs biologiques déjà à jour : {obj.name}")
+                    if first_recent_day <= date < today.isoformat():
+                        logger.info(f"Indicateurs biologiques déjà à jour : {obj.name}")
                     continue
 
                 enriched = {**data, "computed_metrics": metrics}
